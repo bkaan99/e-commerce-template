@@ -64,7 +64,22 @@ export class OrderService {
   /** Kargolanmamış siparişi iptal eder; ödenmişse iadeyi başlatır. */
   async cancel(orderNumber: string, access: OrderAccess): Promise<OrderView> {
     const order = await this.getForAccess(orderNumber, access);
+    await this.cancelOrder(order);
+    return (await this.orders.findByOrderNumber(order.orderNumber))!;
+  }
 
+  /**
+   * Personel iptali: sahiplik denetimi yapmaz (yetki çağıran katmanda
+   * doğrulanır). Ödenmişse önce iade edilir.
+   */
+  async cancelByStaff(orderNumber: string): Promise<void> {
+    const order = await this.orders.findByOrderNumber(orderNumber);
+    if (!order) throw new NotFoundError("Sipariş");
+
+    await this.cancelOrder(order);
+  }
+
+  private async cancelOrder(order: OrderView): Promise<void> {
     if (!CANCELLABLE.includes(order.status)) {
       throw new ConflictError("Bu sipariş artık iptal edilemez");
     }
@@ -83,7 +98,7 @@ export class OrderService {
       await this.orders.recordRefund(
         order.id,
         payment.amount,
-        "Müşteri iptali",
+        "İptal",
         refund.providerRef,
       );
     }
@@ -93,8 +108,6 @@ export class OrderService {
       orderId: order.id,
       refunded: paid,
     });
-
-    return (await this.orders.findByOrderNumber(order.orderNumber))!;
   }
 
   private canAccess(order: OrderView, access: OrderAccess): boolean {

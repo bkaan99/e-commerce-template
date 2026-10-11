@@ -8,7 +8,9 @@ import {
   ORDER_STATUS_LABELS,
   isCancellable,
 } from "@/modules/orders/order-labels";
+import { getReturnService } from "@/modules/returns/container";
 import { isAppError } from "@/shared/errors";
+import { ReturnForm } from "./return-form";
 import {
   CancelOrderButton,
   OrderStatusPoller,
@@ -39,6 +41,15 @@ async function OrderContent({
     if (isAppError(error)) notFound();
     throw error;
   }
+
+  const canConsiderReturn =
+    order.status === "SHIPPED" || order.status === "DELIVERED";
+  const returnEligibility = canConsiderReturn
+    ? await getReturnService().getEligibility(order.orderNumber, {
+        userId: user?.id ?? null,
+        lookupToken: token,
+      })
+    : null;
 
   const address = order.shippingAddress;
   const awaitingPayment = order.status === "PENDING_PAYMENT";
@@ -155,6 +166,19 @@ async function OrderContent({
           {address.district}/{address.city}
         </p>
       </section>
+
+      {returnEligibility?.eligible ? (
+        <ReturnForm
+          orderNumber={order.orderNumber}
+          lookupToken={token}
+          items={returnEligibility.items}
+          deadline={returnEligibility.deadline?.toISOString() ?? null}
+        />
+      ) : returnEligibility?.reason ? (
+        <p className="text-sm text-muted-foreground">
+          {returnEligibility.reason}
+        </p>
+      ) : null}
 
       {isCancellable(order.status) && !awaitingPayment ? (
         <CancelOrderButton

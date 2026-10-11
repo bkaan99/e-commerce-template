@@ -37,6 +37,8 @@ export interface SiteConfig {
   inventory: {
     /** Ödeme başlatıldığında stoğun rezerve tutulacağı süre */
     reservationMinutes: number;
+    /** Bu adet ve altındaki stok "düşük stok" olarak raporlanır */
+    lowStockThreshold: number;
   };
   auditLog: {
     retentionDays: number;
@@ -65,6 +67,7 @@ const defaultSiteConfig: SiteConfig = {
   },
   inventory: {
     reservationMinutes: 15,
+    lowStockThreshold: 5,
   },
   auditLog: {
     retentionDays: 365,

@@ -4,12 +4,16 @@ import { Suspense } from "react";
 import { isFeatureEnabled } from "@/config/features";
 import { siteConfig } from "@/config/site.config";
 import { getCategoryTree } from "@/modules/catalog/cached";
+import { getContentService } from "@/modules/content/container";
 import { AccountLink } from "./account-link";
 import { CartBadge } from "./cart-badge";
 
 async function CategoryNav() {
   await connection();
-  const tree = await getCategoryTree();
+  const [tree, extra] = await Promise.all([
+    getCategoryTree(),
+    getContentService().menu("header"),
+  ]);
 
   return (
     <nav
@@ -23,6 +27,15 @@ async function CategoryNav() {
           className="hover:underline"
         >
           {category.name}
+        </Link>
+      ))}
+      {extra.map((item) => (
+        <Link
+          key={`${item.label}-${item.url}`}
+          href={item.url}
+          className="text-muted-foreground hover:underline"
+        >
+          {item.label}
         </Link>
       ))}
     </nav>

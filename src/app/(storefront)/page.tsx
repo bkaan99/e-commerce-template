@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import Link from "next/link";
 import { Suspense } from "react";
+import { BannerGrid } from "@/components/storefront/banner-grid";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { siteConfig } from "@/config/site.config";
 import { getCategoryTree } from "@/modules/catalog/cached";
@@ -39,6 +40,10 @@ export default function HomePage() {
         <h1 className="text-3xl font-semibold">{siteConfig.name}</h1>
         <p className="text-muted-foreground">{siteConfig.description}</p>
       </section>
+
+      <Suspense fallback={null}>
+        <BannerGrid />
+      </Suspense>
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold">Kategoriler</h2>
