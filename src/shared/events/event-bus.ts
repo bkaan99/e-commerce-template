@@ -5,7 +5,7 @@
 export interface DomainEvents {
   "order.paid": { orderId: string };
   "order.shipped": { orderId: string; trackingNumber: string | null };
-  "order.cancelled": { orderId: string };
+  "order.cancelled": { orderId: string; refunded: boolean };
   "stock.replenished": { variantId: string };
 }
 
