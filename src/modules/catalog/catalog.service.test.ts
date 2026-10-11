@@ -103,6 +103,12 @@ class FakeRepository implements CatalogRepository {
   async findRedirect() {
     return null;
   }
+  async findFeaturedIds() {
+    return ["f1"];
+  }
+  async listActiveProductSlugs() {
+    return [];
+  }
 }
 
 const baseQuery: ProductListQuery = {

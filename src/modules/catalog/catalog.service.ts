@@ -200,6 +200,18 @@ export class CatalogService {
     return this.getCardsInOrder(ids, identity);
   }
 
+  async getHomepageProducts(
+    limit = 8,
+    identity: PricingIdentity = ANONYMOUS,
+  ): Promise<ProductCard[]> {
+    const ids = await this.repository.findFeaturedIds(limit);
+    return this.getCardsInOrder(ids, identity);
+  }
+
+  listProductSlugs(): Promise<{ slug: string; updatedAt: Date }[]> {
+    return this.repository.listActiveProductSlugs();
+  }
+
   async findRedirect(path: string): Promise<string | null> {
     const redirect = await this.repository.findRedirect(path);
     return redirect?.toPath ?? null;

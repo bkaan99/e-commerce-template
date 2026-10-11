@@ -98,6 +98,10 @@ export interface CatalogRepository {
     limit: number,
   ): Promise<string[]>;
   findRedirect(path: string): Promise<{ toPath: string } | null>;
+  /** Öne çıkan ürünler; yetersizse en yeniler tamamlar. */
+  findFeaturedIds(limit: number): Promise<string[]>;
+  /** Sitemap için yayındaki tüm ürün slug'ları. */
+  listActiveProductSlugs(): Promise<{ slug: string; updatedAt: Date }[]>;
 }
 
 const insensitive = "insensitive" as const;
@@ -411,5 +415,34 @@ export class PrismaCatalogRepository implements CatalogRepository {
       select: { toPath: true },
     });
     return row;
+  }
+
+  async findFeaturedIds(limit: number): Promise<string[]> {
+    const base = {
+      status: "ACTIVE" as const,
+      variants: { some: { isActive: true } },
+    };
+    const featured = await this.db().product.findMany({
+      where: { ...base, isFeatured: true },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true },
+    });
+    if (featured.length >= limit) return featured.map((row) => row.id);
+
+    const filler = await this.db().product.findMany({
+      where: { ...base, id: { notIn: featured.map((row) => row.id) } },
+      orderBy: { createdAt: "desc" },
+      take: limit - featured.length,
+      select: { id: true },
+    });
+    return [...featured, ...filler].map((row) => row.id);
+  }
+
+  listActiveProductSlugs(): Promise<{ slug: string; updatedAt: Date }[]> {
+    return this.db().product.findMany({
+      where: { status: "ACTIVE", variants: { some: { isActive: true } } },
+      select: { slug: true, updatedAt: true },
+    });
   }
 }
