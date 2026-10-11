@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  SECURE_SESSION_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+} from "@/modules/auth/session-cookie";
 
-const SESSION_COOKIES = [
-  "authjs.session-token",
-  "__Secure-authjs.session-token",
-];
+const SESSION_COOKIES = [SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME];
 
 /**
  * Yalnızca hızlı (iyimser) yönlendirme: oturum çerezi yoksa girişe gönderir.

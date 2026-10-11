@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import {
   getDevPaymentProvider,
@@ -22,6 +23,7 @@ async function DevPaymentContent({
   PageProps<"/odeme/gelistirme/[orderNumber]">,
   "params" | "searchParams"
 >) {
+  await connection();
   if (!getDevPaymentProvider()) notFound();
 
   const { orderNumber } = await params;

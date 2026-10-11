@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import { authService } from "@/modules/auth/container";
+import { sessionCookieName } from "@/modules/auth/session-cookie";
 import { getEnv } from "@/shared/env";
 
 const credentialsSchema = z.object({
@@ -23,6 +24,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   return {
     secret: env.AUTH_SECRET,
     session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
+    cookies: {
+      sessionToken: {
+        name: sessionCookieName(env.NODE_ENV === "production"),
+        options: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: env.NODE_ENV === "production",
+        },
+      },
+    },
     pages: { signIn: "/giris" },
     providers: [
       Credentials({
