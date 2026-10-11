@@ -39,14 +39,18 @@ async function CartContent() {
         <p className="text-xs text-muted-foreground">
           KDV dahildir. Kargo ücreti ödeme adımında hesaplanır.
         </p>
-        <button
-          type="button"
-          disabled
-          title="Ödeme adımı bir sonraki fazda gelecek"
-          className="rounded-theme bg-primary px-4 py-3 text-primary-foreground opacity-50"
-        >
-          Ödemeye geç
-        </button>
+        {cart.hasIssues ? (
+          <span className="rounded-theme bg-primary px-4 py-3 text-center text-primary-foreground opacity-50">
+            Ödemeye geç
+          </span>
+        ) : (
+          <Link
+            href="/odeme"
+            className="rounded-theme bg-primary px-4 py-3 text-center text-primary-foreground"
+          >
+            Ödemeye geç
+          </Link>
+        )}
         {cart.hasIssues ? (
           <p className="text-xs text-red-600">
             Sepetinizde satın alınamayan ürünler var.

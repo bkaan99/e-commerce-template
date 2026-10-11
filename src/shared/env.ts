@@ -18,9 +18,16 @@ const envSchema = z
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.coerce.number().int().positive(),
     MAIL_FROM: z.string().min(1),
+    SMTP_USER: optionalString,
+    SMTP_PASSWORD: optionalString,
     PAYTR_MERCHANT_ID: optionalString,
     PAYTR_MERCHANT_KEY: optionalString,
     PAYTR_MERCHANT_SALT: optionalString,
+    /** Production'da PayTR test modunu açar (canlıya geçmeden önce deneme için) */
+    PAYTR_TEST_MODE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     TURNSTILE_SITE_KEY: optionalString,
     TURNSTILE_SECRET_KEY: optionalString,
   })

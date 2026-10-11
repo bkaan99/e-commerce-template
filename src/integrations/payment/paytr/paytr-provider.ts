@@ -122,6 +122,7 @@ export class PaytrProvider implements PaymentProvider {
     return {
       token: json["token"],
       paymentUrl: `${PAYMENT_PAGE_URL}${json["token"]}`,
+      mode: "iframe",
     };
   }
 

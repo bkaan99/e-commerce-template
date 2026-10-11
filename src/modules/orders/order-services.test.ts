@@ -108,6 +108,7 @@ function makeProvider(
     initiate: vi.fn(async (): Promise<PaymentInitResult> => ({
       token: "t",
       paymentUrl: "https://pay.test/t",
+      mode: "iframe",
     })),
     verifyCallback: vi.fn((): PaymentCallbackResult => ({
       merchantOid: "SABC123",
@@ -137,7 +138,10 @@ describe("PaymentService", () => {
 
     const result = await service.start("SABC123", { customerIp: "1.2.3.4" });
 
-    expect(result.paymentUrl).toBe("https://pay.test/t");
+    expect(result).toEqual({
+      paymentUrl: "https://pay.test/t",
+      mode: "iframe",
+    });
     const request = vi.mocked(provider.initiate).mock.calls[0]![0];
     expect(request).toMatchObject({
       merchantOid: "SABC123",

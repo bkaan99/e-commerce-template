@@ -94,6 +94,7 @@ describe("PaytrProvider.initiate", () => {
     expect(result).toEqual({
       token: "abc123",
       paymentUrl: "https://www.paytr.com/odeme/guvenli/abc123",
+      mode: "iframe",
     });
   });
 

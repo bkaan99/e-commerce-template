@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { siteConfig } from "@/config/site.config";
@@ -19,8 +20,13 @@ export function SiteFooter() {
           </Suspense>{" "}
           {siteConfig.name}
         </p>
-        <p>
-          {siteConfig.contact.email} · {siteConfig.contact.phone}
+        <p className="flex flex-wrap gap-x-4">
+          <Link href="/siparis-sorgula" className="hover:text-foreground">
+            Sipariş sorgula
+          </Link>
+          <span>
+            {siteConfig.contact.email} · {siteConfig.contact.phone}
+          </span>
         </p>
       </div>
     </footer>

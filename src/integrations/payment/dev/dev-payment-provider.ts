@@ -23,9 +23,13 @@ export class DevPaymentProvider implements PaymentProvider {
   ) {}
 
   async initiate(request: PaymentInitRequest): Promise<PaymentInitResult> {
+    // Sipariş erişim belirteci, dönüş adresinden alınıp sayfaya taşınır.
+    const token = new URL(request.okUrl).searchParams.get("t") ?? "";
+
     return {
       token: request.merchantOid,
-      paymentUrl: `${this.baseUrl}/odeme/gelistirme/${request.merchantOid}`,
+      paymentUrl: `${this.baseUrl}/odeme/gelistirme/${request.merchantOid}?t=${encodeURIComponent(token)}`,
+      mode: "redirect",
     };
   }
 

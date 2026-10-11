@@ -18,8 +18,10 @@ export interface PaymentInitRequest {
 export interface PaymentInitResult {
   /** Sağlayıcıdaki ödeme oturumunu temsil eden belirteç */
   token: string;
-  /** Müşterinin ödemeyi yapacağı sayfanın adresi (iFrame kaynağı) */
+  /** Müşterinin ödemeyi yapacağı sayfanın adresi */
   paymentUrl: string;
+  /** iframe: sayfa içine gömülür. redirect: müşteri sayfaya yönlendirilir. */
+  mode: "iframe" | "redirect";
 }
 
 export interface PaymentInitiator {

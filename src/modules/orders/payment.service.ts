@@ -33,7 +33,7 @@ export class PaymentService {
   async start(
     orderNumber: string,
     context: { customerIp: string },
-  ): Promise<{ paymentUrl: string }> {
+  ): Promise<{ paymentUrl: string; mode: "iframe" | "redirect" }> {
     const order = await this.orders.findByOrderNumber(orderNumber);
     if (!order) throw new NotFoundError("Sipariş");
 
@@ -62,7 +62,7 @@ export class PaymentService {
       failUrl: `${this.urls.baseUrl}/siparis/${order.orderNumber}?t=${order.lookupToken}&durum=basarisiz`,
     });
 
-    return { paymentUrl: result.paymentUrl };
+    return { paymentUrl: result.paymentUrl, mode: result.mode };
   }
 
   /**
