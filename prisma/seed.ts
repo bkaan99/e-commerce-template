@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { SYSTEM_ROLES } from "../src/shared/permissions";
+import { slugify } from "../src/shared/slug";
 import {
   createPrismaClient,
   type PrismaClient,
@@ -198,19 +199,6 @@ const DEMO_PRODUCTS: DemoProduct[] = [
     colors: ["Siyah"],
   },
 ];
-
-function slugify(value: string): string {
-  return value
-    .toLocaleLowerCase("tr")
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 async function seedDemoCatalog(db: PrismaClient): Promise<void> {
   const categoryIds = new Map<string, string>();
