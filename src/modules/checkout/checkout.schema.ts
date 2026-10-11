@@ -100,8 +100,10 @@ export type AddressInput = z.infer<typeof addressSchema>;
 
 export const checkoutSchema = z.object({
   email: z
-    .email("Geçerli bir e-posta girin")
-    .transform((v) => v.trim().toLowerCase()),
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Geçerli bir e-posta girin")),
   shippingAddress: addressSchema,
   /** Boşsa teslimat adresi fatura adresi olarak kullanılır. */
   billingAddress: addressSchema.optional(),
