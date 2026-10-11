@@ -144,11 +144,23 @@ Katmanlar düzen ve okunabilirlik içindir. Şablon "kopyala ve unut" modeliyle 
 | Ödeme (PayTR) | `PaymentProvider` arkasında `PayTRProvider`. Callback **idempotent** ve **hash doğrulamalı** |
 | ERP | `ErpConnector` arayüzü + senkron altyapısı (zamanlanmış iş, kuyruk, hata kaydı, tekrar deneme) v0.6. Somut ERP adapter'ı projeye göre yazılır |
 | Pazaryeri | Şemada `Order.source` alanı; ERP altyapısını yeniden kullanan genel `ChannelConnector` yaklaşımı. Gerçek pazaryeri adapter'ları kapsam dışı |
-| E-posta | v0.3'te zorunlu; `Notifier` arayüzü + kuyruk, şablon tabanlı |
+| E-posta | v0.3'te zorunlu; `Notifier` arayüzü + kuyruk, şablon tabanlı. Yalnızca **işlem (transactional) e-postaları**, bülten ve sepet terk hatırlatması kapsam dışı. Aşağıdaki "E-posta listesi"ne bakınız |
 | SMS | Adapter arayüzü hazır, varsayılan kapalı (bayrak) |
 | WhatsApp | Kapsam dışı |
 | Kargo | Yurtiçi, Aras, MNG adapter'ları (takip no, etiket); canlı fiyat sorgusu sonraya |
 | E-fatura/e-arşiv | Adapter arayüzü hazır, entegratör projeye göre |
+
+### 5.7 E-posta listesi
+
+| Alıcı | E-posta |
+|---|---|
+| Müşteri | Sipariş alındı/onaylandı, kargoya verildi (takip no), iptal, iade durumu, şifre sıfırlama, üyelik doğrulama |
+| Bayi (B2B) | Başvuru alındı, başvuru onaylandı/reddedildi |
+| Yönetici | Yeni sipariş, iade talebi, düşük stok, yeni bayi başvurusu |
+
+- Tetikleme domain olayları üzerinden yapılır; gönderim kuyrukta, hata durumunda tekrar denenir ve kaydedilir.
+- Şablon içerikleri i18n çeviri dosyasından gelir.
+- Geliştirmede e-postalar yerel yakalayıcıya düşer, gerçekten gönderilmez.
 
 ## 6. Ödeme: PayTR
 
@@ -197,7 +209,7 @@ Her faz sonunda çalışan, kopyalanabilir bir sürüm çıkar.
 
 ## 11. Kapsam Dışı / Sonraya Kalanlar
 
-Çok depo, çok para birimi, çok dilli ürün içeriği, değişim (exchange), "2 al 1 öde" gibi karmaşık kampanyalar, bölge bazlı kargo tarifesi ve canlı kargo fiyatı, tam cari/bakiye sistemi, gerçek pazaryeri adapter'ları, WhatsApp, gelişmiş analitik, video/3D ürün medyası, hazır sektör şablonları (preset).
+Çok depo, çok para birimi, çok dilli ürün içeriği, değişim (exchange), "2 al 1 öde" gibi karmaşık kampanyalar, bölge bazlı kargo tarifesi ve canlı kargo fiyatı, tam cari/bakiye sistemi, gerçek pazaryeri adapter'ları, WhatsApp, bülten/toplu e-posta, sepet terk hatırlatması, gelişmiş analitik, video/3D ürün medyası, hazır sektör şablonları (preset).
 
 ## 12. Çalışma Kuralı
 
