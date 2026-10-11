@@ -757,3 +757,13 @@ model AuditLog {
   @@index([actorId])
   @@index([createdAt])
 }
+
+/// Sabit pencereli istek sayacı (rate limiting). Eski kayıtlar periyodik temizlenir.
+model RateLimit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}

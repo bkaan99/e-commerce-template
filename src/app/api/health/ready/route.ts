@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { getDb } from "@/shared/db";
 import { reportError } from "@/shared/error-reporter";
+import { getJobQueue } from "@/shared/queue";
 
 type CheckResult = "ok" | "fail";
 
@@ -14,11 +15,16 @@ async function checkDatabase(): Promise<CheckResult> {
   }
 }
 
+async function checkQueue(): Promise<CheckResult> {
+  return (await getJobQueue().healthCheck()) ? "ok" : "fail";
+}
+
 /** Readiness: trafik almaya hazır mı? Bağımlılıkları kontrol eder. */
 export async function GET() {
   await connection();
 
-  const checks = { database: await checkDatabase() };
+  const [database, queue] = await Promise.all([checkDatabase(), checkQueue()]);
+  const checks = { database, queue };
   const ready = Object.values(checks).every((result) => result === "ok");
 
   return Response.json(

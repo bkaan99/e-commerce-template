@@ -19,7 +19,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "worker": "tsx --conditions react-server src/worker/index.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.2",
@@ -30,6 +31,7 @@
     "next": "16.4.0",
     "next-auth": "5.0.0-beta.32",
     "pg": "8.23.1",
+    "pg-boss": "12.37.1",
     "pino": "10.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
