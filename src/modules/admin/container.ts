@@ -6,6 +6,8 @@ import { PrismaProductAdminRepository } from "./catalog/product-admin.repository
 import { ProductAdminService } from "./catalog/product-admin.service";
 import { PrismaTaxonomyRepository } from "./taxonomy/taxonomy.repository";
 import { TaxonomyService } from "./taxonomy/taxonomy.service";
+import { PrismaPromotionRepository } from "./promotions/promotion.repository";
+import { PromotionService } from "./promotions/promotion.service";
 import { PrismaAdminOrderRepository } from "./orders/admin-order.repository";
 import { AdminOrderService } from "./orders/admin-order.service";
 
@@ -29,6 +31,13 @@ export function getProductAdminService(): ProductAdminService {
 export function getTaxonomyService(): TaxonomyService {
   return new TaxonomyService(
     new PrismaTaxonomyRepository(getDb),
+    getAuditLogger(),
+  );
+}
+
+export function getPromotionService(): PromotionService {
+  return new PromotionService(
+    new PrismaPromotionRepository(getDb),
     getAuditLogger(),
   );
 }
