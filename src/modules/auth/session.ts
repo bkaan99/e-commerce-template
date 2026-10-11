@@ -57,3 +57,10 @@ export async function requirePermission(
 
   return user;
 }
+
+/** Personel girişini zorunlu kılar; müşteri hesabı admin alanına giremez. */
+export async function requireStaff(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.type !== "STAFF") redirect("/");
+  return user;
+}
