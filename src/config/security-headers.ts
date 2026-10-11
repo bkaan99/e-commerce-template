@@ -14,6 +14,8 @@ export function buildSecurityHeaders(isProduction: boolean): HeaderEntry[] {
     "'unsafe-inline'",
     ...(isProduction ? [] : ["'unsafe-eval'"]),
     "https://challenges.cloudflare.com",
+    "https://www.googletagmanager.com",
+    "https://connect.facebook.net",
   ].join(" ");
 
   const csp = [
@@ -22,7 +24,7 @@ export function buildSecurityHeaders(isProduction: boolean): HeaderEntry[] {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://www.facebook.com",
     "frame-src https://www.paytr.com https://challenges.cloudflare.com",
     "object-src 'none'",
     "base-uri 'self'",
