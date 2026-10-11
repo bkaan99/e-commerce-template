@@ -3,7 +3,7 @@
 Türkiye pazarına yönelik e-ticaret siteleri için Next.js tabanlı, kopyalanıp kullanılan şablon.
 PayTR ödeme, B2B bayi desteği, yönetim paneli ve temiz katmanlı mimari hedefler.
 
-> **Durum:** v0.1 İskelet tamamlandı. Vitrin, satış akışı ve admin panelinin ekranları sonraki fazlarda gelir.
+> **Durum:** v0.2 Vitrin tamamlandı (katalog, filtre, arama, ürün detayı, sepet, favoriler, SEO, analitik). Ödeme/sipariş (v0.3) ve admin ekranları (v0.4) sonraki fazlarda gelir.
 > Plan ve kararlar: [docs/analiz.md](docs/analiz.md)
 
 ## Gereksinimler
@@ -30,6 +30,8 @@ npm run dev      # uygulama  → http://localhost:3000
 npm run worker   # arka plan işleri (ayrı terminalde)
 ```
 
+- Vitrin: `/` ana sayfa, `/kategori/<slug>`, `/urun/<slug>`, `/ara?q=`, `/sepet`, `/favoriler`
+- SEO: `/sitemap.xml`, `/robots.txt`, ürün sayfalarında JSON-LD
 - Yönetim paneli: `/admin` (giriş: `/giris`)
 - Gelen e-postalar (Mailpit): http://localhost:8025
 - Sağlık kontrolü: `/api/health` ve `/api/health/ready`
@@ -59,7 +61,8 @@ Yalnızca yapılandırma dosyalarını üretmek için: `npm run init-project -- 
 ```
 src/
   app/            Yönlendirme ve sayfalar (admin: app/(admin))
-  modules/        İş mantığı modülleri (şu an: auth)
+  modules/        İş mantığı modülleri: auth, catalog, cart, wishlist
+  components/     Vitrin bileşenleri (storefront, product, wishlist)
   integrations/   Dış servis adapter'ları (PayTR, kargo, ...)
   shared/         Ortak altyapı: env, db, hata, para, logger, kuyruk, rate limit, audit, i18n
   config/         Projeye özel: site.config, features, theme, project.json
@@ -95,6 +98,14 @@ UI → Server Action / Route Handler (ince)
 | Ortam değişkenleri                | `.env` (şema: `src/shared/env.ts`)                |
 
 Satış modları: `retail` (herkes perakende fiyat görür), `hybrid` (onaylı bayi kendi fiyatını görür), `b2b` (fiyatlar girişsiz gizli, üyelik onaylı). `retail` dışındaki modlar `features.b2b` bayrağını gerektirir; tutarsızlık açılışta hata verir.
+
+## Vitrin mimarisi
+
+- **Katalog:** `CatalogService` listeleme, filtre (nitelik/marka/fiyat), arama, sıralama ve sayfalamayı yapar. Fiyat `PriceResolver` arayüzüyle çözülür (şimdilik perakende; B2B v0.5).
+- **Sepet:** Misafir sepeti `cart_token` çerezinde, üye sepeti kullanıcıda tutulur; girişte birleştirilir. Stok `stok − rezerve` üzerinden doğrulanır.
+- **Favoriler:** Üyede veritabanında, misafirde tarayıcıda (`localStorage`); girişte hesaba aktarılır.
+- **Analitik:** Olaylar tek `trackEvent` arayüzünden gider; çerez onayı olmadan hiçbir izleme betiği yüklenmez.
+- **Önbellek:** Veritabanı okuyan bileşenler istek anında çalışır (`connection()`); build veritabanı gerektirmez.
 
 ## Güvenlik notları
 

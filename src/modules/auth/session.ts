@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { auth } from "@/auth";
 import { ForbiddenError } from "@/shared/errors";
 import type { Permission } from "@/shared/permissions";
@@ -18,6 +19,9 @@ export interface CurrentUser {
 
 /** Oturumdaki kullanıcıyı ve güncel yetkilerini döndürür; oturum yoksa null. */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  // Auth.js rastgele değer üretir; oturum okumak istek anında yapılmalıdır.
+  await connection();
+
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return null;
