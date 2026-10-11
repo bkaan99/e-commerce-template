@@ -37,7 +37,7 @@ const envSchema = z
         ctx.addIssue({
           code: "custom",
           path: [key],
-          message: `${key} production ortamında zorunludur`,
+          message: "production ortamında zorunludur",
         });
       }
     }
