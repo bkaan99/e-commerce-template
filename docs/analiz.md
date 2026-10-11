@@ -12,6 +12,7 @@ Türkiye pazarına yönelik e-ticaret sitelerini her seferinde sıfırdan yazmak
 - Hazır **yönetim paneli**
 - Her müşteri projesi için şablonun **kopyalanıp** özelleştirilmesi (kopyala ve unut)
 - Geliştirme ortamı **yerel** çalışır, Docker Compose ile ayağa kalkar
+- Tek komutla yeni proje kurulumu (`npm run init-project`)
 
 ## 2. Teknoloji Kararları
 
@@ -22,12 +23,16 @@ Türkiye pazarına yönelik e-ticaret sitelerini her seferinde sıfırdan yazmak
 | Ödeme | **PayTR** (iFrame API) |
 | Kimlik doğrulama | Auth.js (müşteri ve admin rolleri) |
 | UI | Tailwind + shadcn/ui |
-| Validasyon | Zod (form, API ve domain ortak kaynak) |
+| Validasyon | Zod (form, API, domain ve ortam değişkenleri ortak kaynak) |
 | Mutasyonlar | Server Actions / Route Handlers (ince) + servis katmanı |
+| Arka plan işleri | **pg-boss** (Postgres üzerinde), `JobQueue` arayüzü arkasında; worker aynı kod tabanında ayrı süreç |
 | Dosya/görsel | Storage adapter (yerel → S3/R2) |
 | Arama | Başlangıçta Postgres, adapter arkasında |
 | Para | `Decimal` + `currency` (varsayılan `TRY`), tek `formatMoney` yardımcısı |
 | Dil | Türkçe; arayüz metinleri i18n çeviri dosyasından, ürün içerikleri tek dilde |
+| Loglama | pino, yapılandırılmış log, korelasyon kimliği, hassas veri yazılmaz |
+| Hata izleme | `ErrorReporter` arayüzü (varsayılan konsol, Sentry adapter olarak) |
+| Ortam değişkenleri | Tek Zod şeması ile açılışta doğrulama; kodda `process.env` kullanılmaz |
 | Ortam | Yerel çalışma + **Docker Compose** (PostgreSQL; e-posta testi için yerel posta yakalayıcı) |
 
 ## 3. Yazım İlkeleri
@@ -65,19 +70,20 @@ UI (app/, components)
   → Server Actions / Route Handlers (ince, sadece giriş/çıkış)
     → Service (iş kuralları)
       → Repository (Prisma erişimi)
-      → Integration adapter (PayTR, kargo, e-posta, SMS, ERP, e-fatura)
+      → Integration adapter (PayTR, kargo, e-posta, SMS, ERP, e-fatura, analitik)
 ```
 
 ### 4.2 Klasör yapısı (hedef)
 
 ```
 src/
-  modules/        ÇEKİRDEK: catalog, cart, checkout, orders, customers, b2b, admin, reporting
-  integrations/   ADAPTER'LAR: payment/paytr, shipping/*, invoice/*, notification/*, erp/*
-  shared/         ortak tipler, hata sınıfları, para/KDV yardımcıları, i18n
+  modules/        ÇEKİRDEK: catalog, cart, checkout, orders, customers, b2b, content, admin, reporting
+  integrations/   ADAPTER'LAR: payment/paytr, shipping/*, invoice/*, notification/*, erp/*, analytics/*
+  shared/         ortak tipler, hata sınıfları, para/KDV yardımcıları, i18n, env, logger, audit
   config/         PROJEYE ÖZEL: site.config.ts, theme.ts, features.ts
   app/            yönlendirme ve sayfa kompozisyonu; admin: app/(admin)
 prisma/           şema, migration, seed
+scripts/          init-project (proje başlatma)
 docs/             analiz ve mimari dokümanlar
 docker-compose.yml, .env.example
 ```
@@ -86,8 +92,8 @@ Katmanlar düzen ve okunabilirlik içindir. Şablon "kopyala ve unut" modeliyle 
 
 ### 4.3 Özellik bayrakları ve site modu
 
-- `features.ts`: `b2b`, `guestCheckout`, `reviews`, `wishlist`, `blog`, `sms`.
-- `site.config.ts`: `salesMode: 'retail' | 'b2b' | 'hybrid'`, cayma süresi, ücretsiz kargo limiti, site bilgileri.
+- `features.ts`: `b2b`, `guestCheckout`, `wishlist`, `blog`, `sms`, `captcha`.
+- `site.config.ts`: `salesMode: 'retail' | 'b2b' | 'hybrid'`, cayma süresi, ücretsiz kargo limiti, audit log saklama süresi, site bilgileri.
 
 ## 5. Alan Kararları
 
@@ -99,22 +105,29 @@ Katmanlar düzen ve okunabilirlik içindir. Şablon "kopyala ve unut" modeliyle 
 | Nitelikler | **Tanımlı nitelik sistemi**: admin nitelik tanımlar, ürüne bağlar, listelemede filtre olur |
 | Görseller | Çoklu görsel, sıralama, ana görsel; **varyanta (renk) özel görsel**; video/3D yok |
 | Ürün ölçüleri | `desi` ve `ağırlık` alanları baştan vardır |
+| SEO | Slug, sitemap, robots, meta, Open Graph, Product JSON-LD, canonical, slug değişince otomatik 301 |
+| Benzer ürünler | `RelatedProductsStrategy`: kural tabanlı (kategori/nitelik, stokta olanlar öncelikli); admin elle seçerse o ezer |
+| Favoriler | `features.ts` bayrağı; üye için hesapta, misafir için tarayıcıda tutulur, girişte hesaba taşınır |
 
 ### 5.2 Stok
 
 - Tek depo (çok depo sonradan eklenebilir).
 - Stok takibi **ürün bazında opsiyonel** ("sınırsız" seçeneği var).
 - Ödeme başlatıldığında **kısa süreli stok rezervasyonu**; süre dolarsa rezervasyon düşer.
+- **Stok gelince haber ver:** Stoksuz üründe müşteri e-posta bırakır, stok girince pg-boss işiyle bildirim gider. Tekrar kayıt engellenir, "abonelikten çık" bağlantısı vardır, rate limiting uygulanır. Admin panelinde talep göstergesi bulunur.
 
 ### 5.3 Satış akışı
 
 | Konu | Karar |
 |---|---|
+| Ödeme yöntemleri | PayTR; B2B için havale/EFT ve vadeli ödeme. **Kapıda ödeme yok** |
 | Misafir checkout | Açık, `features.ts` bayrağıyla kapatılabilir; sipariş sonrası "hesap oluştur" teklifi |
+| Misafir sipariş takibi | Sipariş no + e-posta sorgulama sayfası ve e-postadaki tahmin edilemez güvenli bağlantı (aynı servis). Sipariş numarası tahmin edilemez, sorgulamada rate limiting |
 | İndirim | Kupon kodu + otomatik uygulanan basit kampanyalar (kategori/ürün/sepet tutarı, yüzde/sabit). `DiscountRule` arayüzü (strateji deseni) ile genişletilebilir. "2 al 1 öde" sonraya kalır |
 | Kargo ücreti | `ShippingRateCalculator` arayüzü: sabit ücret + ücretsiz kargo limiti + desi bazlı tarife. Bölge tarifesi ve canlı kargo API fiyatı sonraya kalır |
 | İptal | Müşteri kargolanmamış siparişi kendisi iptal edebilir; ödenmişse otomatik PayTR iadesi |
 | İade | Talep → admin onayı → PayTR iadesi + stoğa geri alma. Cayma süresi config'ten ayarlanır. Değişim v2'ye kalır |
+| Sipariş çıktıları | Sipariş özeti ve kargo etiketi/paketleme çıktısı **yazdırılabilir HTML sayfa** olarak; gerçek PDF gerekirse `DocumentRenderer` arayüzüyle sonradan |
 
 ### 5.4 B2B
 
@@ -133,34 +146,59 @@ Katmanlar düzen ve okunabilirlik içindir. Şablon "kopyala ve unut" modeliyle 
 |---|---|
 | Konum | Aynı uygulamada `/admin`; middleware ile yetki koruması; kod `modules/admin` ve `app/(admin)` altında |
 | Yetkilendirme | Yetki bazlı (kontroller rol adıyla değil **yetkiyle**). Seed ile 4 hazır rol: `admin`, `editor`, `warehouse`, `accounting`. Panelden özel rol oluşturma v0.6 |
+| Audit log | Tek `AuditLogger`, domain olayları üzerinden. Kim, ne zaman, neyi, eski/yeni değerle değiştirdi. Kayıtlar silinemez, yalnızca `admin` görür, saklama süresi config'ten |
+| İçerik yönetimi | Banner/slider, statik sayfalar (editörle, slug ve SEO alanlı), menü ve footer panelden yönetilir. Ana sayfa düzeni kodda sabit, öne çıkan ürün/kategori panelden seçilir. Sayfa oluşturucu kapsam dışı |
 | Dışa aktarma | Sipariş ve ürün CSV/Excel dışa aktarma v0.4 |
 | İçe aktarma | Ürün içe aktarma ve fiyat/stok toplu güncelleme v0.6; `ImportProcessor` arayüzü, Zod satır doğrulama, transaction, hatalı satır raporu |
 | Raporlama | v0.4: satış özeti, ürün performansı, operasyon uyarıları (bekleyen sipariş, düşük stok, iade talebi, bayi onayı). v0.6: müşteri metrikleri. Gelişmiş analitik kapsam dışı. `ReportingService` ile toplu sorgular |
 
-### 5.6 Entegrasyonlar
+### 5.6 Müşteri hesabı
+
+- Sipariş geçmişi ve detay (durum, kargo takibi, fatura bilgisi)
+- Adres defteri (varsayılan teslimat/fatura adresi)
+- Tekrar sipariş ver
+- Profil ve şifre yönetimi, e-posta doğrulama
+- **KVKK hakları:** hesap silme (sipariş kayıtları yasal saklama gereği silinmez, kişisel alanlar anonimleştirilir) ve veri dışa aktarma
+
+### 5.7 Entegrasyonlar
 
 | Konu | Karar |
 |---|---|
 | Ödeme (PayTR) | `PaymentProvider` arkasında `PayTRProvider`. Callback **idempotent** ve **hash doğrulamalı** |
 | ERP | `ErpConnector` arayüzü + senkron altyapısı (zamanlanmış iş, kuyruk, hata kaydı, tekrar deneme) v0.6. Somut ERP adapter'ı projeye göre yazılır |
 | Pazaryeri | Şemada `Order.source` alanı; ERP altyapısını yeniden kullanan genel `ChannelConnector` yaklaşımı. Gerçek pazaryeri adapter'ları kapsam dışı |
-| E-posta | v0.3'te zorunlu; `Notifier` arayüzü + kuyruk, şablon tabanlı. Yalnızca **işlem (transactional) e-postaları**, bülten ve sepet terk hatırlatması kapsam dışı. Aşağıdaki "E-posta listesi"ne bakınız |
+| E-posta | v0.3'te zorunlu; `Notifier` arayüzü + kuyruk, şablon tabanlı. Yalnızca işlem (transactional) e-postaları |
 | SMS | Adapter arayüzü hazır, varsayılan kapalı (bayrak) |
 | WhatsApp | Kapsam dışı |
+| Analitik | `Analytics` arayüzü; olaylar (`view_item`, `add_to_cart`, `begin_checkout`, `purchase`) tek kaynaktan. GA4 ve Meta Pixel adapter'ları, çerez onayına bağlı. `purchase` olayı ödeme sonrası sunucu tarafında |
 | Kargo | Yurtiçi, Aras, MNG adapter'ları (takip no, etiket); canlı fiyat sorgusu sonraya |
 | E-fatura/e-arşiv | Adapter arayüzü hazır, entegratör projeye göre |
 
-### 5.7 E-posta listesi
+### 5.8 E-posta listesi
 
 | Alıcı | E-posta |
 |---|---|
-| Müşteri | Sipariş alındı/onaylandı, kargoya verildi (takip no), iptal, iade durumu, şifre sıfırlama, üyelik doğrulama |
+| Müşteri | Sipariş alındı/onaylandı, kargoya verildi (takip no), iptal, iade durumu, şifre sıfırlama, üyelik doğrulama, stok geldi bildirimi |
 | Bayi (B2B) | Başvuru alındı, başvuru onaylandı/reddedildi |
 | Yönetici | Yeni sipariş, iade talebi, düşük stok, yeni bayi başvurusu |
 
 - Tetikleme domain olayları üzerinden yapılır; gönderim kuyrukta, hata durumunda tekrar denenir ve kaydedilir.
 - Şablon içerikleri i18n çeviri dosyasından gelir.
 - Geliştirmede e-postalar yerel yakalayıcıya düşer, gerçekten gönderilmez.
+
+### 5.9 Güvenlik
+
+- **Rate limiting:** giriş, kayıt, şifre sıfırlama, kupon deneme, sipariş sorgulama, stok bildirimi uçlarında. Postgres tabanlı sayaç, dış servis gerekmez.
+- **CAPTCHA (Cloudflare Turnstile):** kayıt, giriş, iletişim formlarında. Bayrakla açılır, anahtar yoksa devre dışı kalır.
+- **Güvenlik başlıkları:** CSP, X-Frame-Options, HSTS vb.
+- **Brute-force hesap kilidi:** art arda hatalı girişte geçici kilit.
+
+### 5.10 Gözlemlenebilirlik
+
+- Yapılandırılmış log (pino); hassas veri (kart, parola, token) yazılmaz.
+- PayTR callback ve ödeme hataları için ayrıntılı log seviyesi.
+- `ErrorReporter` arayüzü; Sentry gömülmez, adapter olarak bağlanır.
+- `/api/health` ve `/api/health/ready` (veritabanı ve kuyruk kontrolü).
 
 ## 6. Ödeme: PayTR
 
@@ -190,26 +228,27 @@ PayTR testlerde **fake adapter** ile çalışır. CI'da her push'ta testler koş
 ## 9. Geliştirme Ortamı
 
 - Yerel çalışma; müşteri projesinde production hosting ayrıca belirlenir.
-- `docker-compose.yml`: PostgreSQL ve yerel e-posta yakalayıcı (geliştirmede gönderilen e-postaları görmek için).
-- `.env.example` ile ortam değişkenleri; Prisma migration + seed komutları.
-- Uygulama için `Dockerfile` hazır tutulur, böylece müşteri projesinde hosting kararı verildiğinde kullanılabilir.
+- `docker-compose.yml`: PostgreSQL ve yerel e-posta yakalayıcı.
+- `.env.example` ile ortam değişkenleri; Zod ile açılışta doğrulanır.
+- `npm run init-project`: etkileşimli kurulum (site adı, alan adı, tema, `salesMode`, bayraklar, `.env`, migration, seed, ilk admin). Çekirdek koda dokunmaz.
+- Uygulama için `Dockerfile` hazır tutulur.
 
 ## 10. Fazlar
 
 | Faz | Kapsam |
 |---|---|
-| **v0.1 İskelet** | Proje yapısı, Docker Compose, Prisma şeması, auth, tema/config/özellik bayrakları, i18n, seed, lint/test altyapısı |
-| **v0.2 Vitrin** | Ürün listeleme, nitelik filtreleri, ürün detay (varyant seçimi), arama, sepet |
-| **v0.3 Satış** | Checkout (misafir/üyeli), adres, PayTR, stok rezervasyonu, sipariş, iptal, e-posta bildirimleri, kupon/kampanya, kargo ücreti |
-| **v0.4 Admin** | Ürün/kategori/nitelik/sipariş/müşteri yönetimi, iade onayı, roller, dashboard, sipariş-ürün dışa aktarma |
+| **v0.1 İskelet** | Proje yapısı, Docker Compose, Prisma şeması, auth, tema/config/özellik bayrakları, i18n, seed, lint/test altyapısı, `init-project`, env doğrulama, pino/`ErrorReporter`/health, pg-boss `JobQueue`, rate limiting, güvenlik başlıkları, hesap kilidi, `AuditLogger` altyapısı |
+| **v0.2 Vitrin** | Ürün listeleme, nitelik filtreleri, ürün detay (varyant seçimi), arama, sepet, SEO temelleri, benzer ürünler, favoriler, analitik olay katmanı (görüntüleme/sepet olayları) |
+| **v0.3 Satış** | Checkout (misafir/üyeli), adres, PayTR, stok rezervasyonu, sipariş, iptal, e-posta bildirimleri, kupon/kampanya, kargo ücreti, müşteri hesabı, misafir sipariş takibi, stok gelince haber ver, `purchase` olayı, Turnstile |
+| **v0.4 Admin** | Ürün/kategori/nitelik/sipariş/müşteri yönetimi, iade onayı, roller, dashboard, audit log ekranı, içerik yönetimi (banner, sayfa, menü), sipariş çıktıları, talep göstergesi, sipariş-ürün dışa aktarma |
 | **v0.5 B2B** | Müşteri grupları, fiyat listeleri, kademeli fiyat, onaylı üyelik, vadeli ödeme (basit), `salesMode` |
-| **v0.6 Cila** | Ürün içe aktarma, toplu fiyat/stok, özel rol oluşturma, müşteri metrikleri, ERP senkron altyapısı, kargo adapter'ları, SEO, KVKK sayfaları, dokümantasyon |
+| **v0.6 Cila** | Ürün içe aktarma, toplu fiyat/stok, özel rol oluşturma, müşteri metrikleri, ERP senkron altyapısı, kargo adapter'ları, KVKK hakları (hesap silme/veri dışa aktarma), KVKK sayfaları, gelişmiş SEO, dokümantasyon |
 
 Her faz sonunda çalışan, kopyalanabilir bir sürüm çıkar.
 
 ## 11. Kapsam Dışı / Sonraya Kalanlar
 
-Çok depo, çok para birimi, çok dilli ürün içeriği, değişim (exchange), "2 al 1 öde" gibi karmaşık kampanyalar, bölge bazlı kargo tarifesi ve canlı kargo fiyatı, tam cari/bakiye sistemi, gerçek pazaryeri adapter'ları, WhatsApp, bülten/toplu e-posta, sepet terk hatırlatması, gelişmiş analitik, video/3D ürün medyası, hazır sektör şablonları (preset).
+Kapıda ödeme, ürün yorumları, çok depo, çok para birimi, çok dilli ürün içeriği, değişim (exchange), "2 al 1 öde" gibi karmaşık kampanyalar, bölge bazlı kargo tarifesi ve canlı kargo fiyatı, tam cari/bakiye sistemi, gerçek pazaryeri adapter'ları, WhatsApp, bülten/toplu e-posta, sepet terk hatırlatması, sayfa oluşturucu, gerçek PDF üretimi, gelişmiş analitik, video/3D ürün medyası, hazır sektör şablonları (preset), ürün karşılaştırma, sadakat puanı, hediye çeki, abonelik.
 
 ## 12. Çalışma Kuralı
 
