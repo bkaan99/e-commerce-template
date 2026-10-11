@@ -1,4 +1,5 @@
 import { features, type Features } from "./features";
+import { projectConfig } from "./project-config";
 
 export type SalesMode = "retail" | "b2b" | "hybrid";
 
@@ -35,7 +36,7 @@ export interface SiteConfig {
   };
 }
 
-export const siteConfig: SiteConfig = {
+const defaultSiteConfig: SiteConfig = {
   name: "E-Ticaret Şablonu",
   description: "Next.js tabanlı e-ticaret şablonu",
   locale: "tr",
@@ -58,6 +59,16 @@ export const siteConfig: SiteConfig = {
   auditLog: {
     retentionDays: 365,
   },
+};
+
+const projectSite = projectConfig.site ?? {};
+
+export const siteConfig: SiteConfig = {
+  ...defaultSiteConfig,
+  name: projectSite.name ?? defaultSiteConfig.name,
+  description: projectSite.description ?? defaultSiteConfig.description,
+  salesMode: projectSite.salesMode ?? defaultSiteConfig.salesMode,
+  contact: { ...defaultSiteConfig.contact, ...projectSite.contact },
 };
 
 /** Yapılandırma tutarsızlıklarını açılışta yakalar. */

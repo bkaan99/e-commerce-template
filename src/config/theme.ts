@@ -1,3 +1,5 @@
+import { projectConfig } from "./project-config";
+
 /** Tema belirteçleri (design tokens). Müşteriye göre bu dosya değiştirilir. */
 export interface Theme {
   colors: {
@@ -13,7 +15,7 @@ export interface Theme {
   radius: string;
 }
 
-export const theme: Theme = {
+const defaultTheme: Theme = {
   colors: {
     primary: "#111827",
     primaryForeground: "#ffffff",
@@ -25,6 +27,11 @@ export const theme: Theme = {
     accent: "#2563eb",
   },
   radius: "0.5rem",
+};
+
+export const theme: Theme = {
+  ...defaultTheme,
+  colors: { ...defaultTheme.colors, ...projectConfig.theme?.colors },
 };
 
 function toKebabCase(value: string): string {

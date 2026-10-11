@@ -1,6 +1,6 @@
 # E-Ticaret Şablonu: Analiz ve Mimari Plan
 
-> Durum: **Analiz tamamlandı, kod yazımı onay bekliyor.** Kod yazımına yalnızca proje sahibinin açık "başla" demesiyle geçilir.
+> Durum: **v0.1 İskelet tamamlandı** (dal: `phase/v0.1-skeleton`, inceleme bekliyor). Sonraki fazlara yalnızca proje sahibinin açık "başla" demesiyle geçilir.
 > Son güncelleme: 2026-10-11
 
 ## 1. Amaç
@@ -250,6 +250,20 @@ Her faz sonunda çalışan, kopyalanabilir bir sürüm çıkar.
 
 Kapıda ödeme, ürün yorumları, çok depo, çok para birimi, çok dilli ürün içeriği, değişim (exchange), "2 al 1 öde" gibi karmaşık kampanyalar, bölge bazlı kargo tarifesi ve canlı kargo fiyatı, tam cari/bakiye sistemi, gerçek pazaryeri adapter'ları, WhatsApp, bülten/toplu e-posta, sepet terk hatırlatması, sayfa oluşturucu, gerçek PDF üretimi, gelişmiş analitik, video/3D ürün medyası, hazır sektör şablonları (preset), ürün karşılaştırma, sadakat puanı, hediye çeki, abonelik.
 
-## 12. Çalışma Kuralı
+## 12. v0.1 Uygulama Notları
+
+Uygulama sırasında alınan teknik kararlar:
+
+- **Prisma 7.10.0'a sabitlendi.** npm'deki `latest` etiketi bir 8.0 aday sürümüne (release candidate) bağlıydı ve komut yapısı farklıdır. Kararlı 7.x hattı kullanıldı; istemci `pg` sürücü adaptörüyle çalışır, üretilen kod `generated/prisma` altındadır (git'e girmez).
+- **Auth.js:** `next-auth@5.0.0-beta.32` (sürüm sabit). Oturum JWT'dir, yalnızca kimlik ve kullanıcı tipi taşır; yetkiler her istekte veritabanından okunur.
+- **Next.js 16 / Cache Components:** `cacheComponents` açık olduğundan `GET` route handler'ları dinamik veriye dokunmazsa build sırasında statik üretilir. Health endpoint'leri bu yüzden `connection()` ile istek anına zorlanır. Oturum okuyan sayfalar `Suspense` içindedir.
+- **`middleware` yerine `proxy.ts`:** Next 16'da dosya kuralı yeniden adlandırıldı. Proxy yalnızca iyimser yönlendirme yapar; asıl yetki kontrolü `requirePermission` ile veri erişim katmanındadır.
+- **Proje özelleştirmesi `project.json` ile:** `init-project` TypeScript dosyalarını düzenlemez; yalnızca `src/config/project.json` üretir, config dosyaları bunu varsayılanların üzerine uygular.
+- **Kuyruk worker'ı** ayrı süreçtir (`npm run worker`); `tsx --conditions react-server` ile çalışır ki `server-only` modülleri paylaşılabilsin.
+- **Entegrasyon testleri** aynı Postgres sunucusunda ayrı `<db>_test` veritabanı kullanır.
+- **Varsayılan veritabanı portu 5433:** yerel makinelerde 5432'nin sık dolu olması nedeniyle seçildi.
+- **Bilinen sınırlar:** CSP `unsafe-inline` içerir (nonce tabanlı CSP tüm sayfaları dinamik yapacağından ertelendi). `npm audit` geliştirme bağımlılıklarında (`eslint-config-next` → `braces`) uyarı verir; çalışma zamanını etkilemez.
+
+## 13. Çalışma Kuralı
 
 Kod yazımına, proje sahibi açıkça "başla" demeden geçilmez.

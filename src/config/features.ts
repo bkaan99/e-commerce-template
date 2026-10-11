@@ -1,3 +1,5 @@
+import { projectConfig } from "./project-config";
+
 /**
  * Özellik bayrakları. Müşteri projesinde ihtiyaca göre açılıp kapatılır.
  * Kapalı bir özelliğin modülü ve menüleri uygulamada görünmez.
@@ -17,13 +19,18 @@ export interface Features {
   captcha: boolean;
 }
 
-export const features: Features = {
+const defaultFeatures: Features = {
   b2b: false,
   guestCheckout: true,
   wishlist: true,
   blog: false,
   sms: false,
   captcha: false,
+};
+
+export const features: Features = {
+  ...defaultFeatures,
+  ...projectConfig.features,
 };
 
 export function isFeatureEnabled(name: keyof Features): boolean {
