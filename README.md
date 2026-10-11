@@ -3,7 +3,7 @@
 Türkiye pazarına yönelik e-ticaret siteleri için Next.js tabanlı, kopyalanıp kullanılan şablon.
 PayTR ödeme, B2B bayi desteği, yönetim paneli ve temiz katmanlı mimari hedefler.
 
-> **Durum:** v0.2 Vitrin tamamlandı (katalog, filtre, arama, ürün detayı, sepet, favoriler, SEO, analitik). Ödeme/sipariş (v0.3) ve admin ekranları (v0.4) sonraki fazlarda gelir.
+> **Durum:** v0.3 Satış tamamlandı (checkout, PayTR ödeme, sipariş, iptal/iade, e-posta, kupon/kampanya, üyelik, stok bildirimi). Admin ekranları (v0.4) ve B2B (v0.5) sonraki fazlarda gelir.
 > Plan ve kararlar: [docs/analiz.md](docs/analiz.md)
 
 ## Gereksinimler
@@ -31,6 +31,7 @@ npm run worker   # arka plan işleri (ayrı terminalde)
 ```
 
 - Vitrin: `/` ana sayfa, `/kategori/<slug>`, `/urun/<slug>`, `/ara?q=`, `/sepet`, `/favoriler`
+- Satış: `/odeme`, `/siparis/<no>`, `/siparis-sorgula`; üyelik: `/kayit`, `/giris`, `/hesabim`, `/sifremi-unuttum`
 - SEO: `/sitemap.xml`, `/robots.txt`, ürün sayfalarında JSON-LD
 - Yönetim paneli: `/admin` (giriş: `/giris`)
 - Gelen e-postalar (Mailpit): http://localhost:8025
@@ -40,28 +41,28 @@ Yalnızca yapılandırma dosyalarını üretmek için: `npm run init-project -- 
 
 ## Komutlar
 
-| Komut                      | Açıklama                                              |
-| -------------------------- | ----------------------------------------------------- |
-| `npm run dev`              | Geliştirme sunucusu                                   |
-| `npm run build` / `start`  | Production derlemesi ve çalıştırma                    |
-| `npm run worker`           | Arka plan iş işleyicisi (pg-boss)                     |
-| `npm run lint`             | ESLint                                                |
-| `npm run typecheck`        | TypeScript denetimi                                   |
-| `npm run format`           | Prettier ile biçimlendirme                            |
-| `npm test`                 | Birim testleri                                        |
-| `npm run test:integration` | Entegrasyon testleri (ayrı test veritabanı kullanır)  |
-| `npm run db:up` / `down`   | Docker servislerini başlat / durdur                   |
-| `npm run db:migrate`       | Geliştirmede migration oluştur ve uygula              |
-| `npm run db:deploy`        | Mevcut migration'ları uygula                          |
-| `npm run db:seed`          | Roller, müşteri grupları ve demo katalog              |
-| `npm run create-admin`     | `-- <e-posta> <parola>` ile yönetici oluştur/güncelle |
+| Komut                      | Açıklama                                                        |
+| -------------------------- | --------------------------------------------------------------- |
+| `npm run dev`              | Geliştirme sunucusu                                             |
+| `npm run build` / `start`  | Production derlemesi ve çalıştırma                              |
+| `npm run worker`           | Arka plan işleri: e-posta, süresi dolan sipariş, stok bildirimi |
+| `npm run lint`             | ESLint                                                          |
+| `npm run typecheck`        | TypeScript denetimi                                             |
+| `npm run format`           | Prettier ile biçimlendirme                                      |
+| `npm test`                 | Birim testleri                                                  |
+| `npm run test:integration` | Entegrasyon testleri (ayrı test veritabanı kullanır)            |
+| `npm run db:up` / `down`   | Docker servislerini başlat / durdur                             |
+| `npm run db:migrate`       | Geliştirmede migration oluştur ve uygula                        |
+| `npm run db:deploy`        | Mevcut migration'ları uygula                                    |
+| `npm run db:seed`          | Roller, müşteri grupları ve demo katalog                        |
+| `npm run create-admin`     | `-- <e-posta> <parola>` ile yönetici oluştur/güncelle           |
 
 ## Yapı
 
 ```
 src/
   app/            Yönlendirme ve sayfalar (admin: app/(admin))
-  modules/        İş mantığı modülleri: auth, catalog, cart, wishlist
+  modules/        İş mantığı: auth, account, catalog, cart, checkout, orders, notifications, stock-alerts, wishlist
   components/     Vitrin bileşenleri (storefront, product, wishlist)
   integrations/   Dış servis adapter'ları (PayTR, kargo, ...)
   shared/         Ortak altyapı: env, db, hata, para, logger, kuyruk, rate limit, audit, i18n
@@ -98,6 +99,16 @@ UI → Server Action / Route Handler (ince)
 | Ortam değişkenleri                | `.env` (şema: `src/shared/env.ts`)                |
 
 Satış modları: `retail` (herkes perakende fiyat görür), `hybrid` (onaylı bayi kendi fiyatını görür), `b2b` (fiyatlar girişsiz gizli, üyelik onaylı). `retail` dışındaki modlar `features.b2b` bayrağını gerektirir; tutarsızlık açılışta hata verir.
+
+## Ödeme (PayTR)
+
+- `.env` içinde `PAYTR_MERCHANT_ID`, `PAYTR_MERCHANT_KEY`, `PAYTR_MERCHANT_SALT` tanımlıysa PayTR iFrame API kullanılır. Production'da zorunludur.
+- Bildirim (callback) adresi: `POST /api/payments/paytr/callback`. PayTR mağaza panelinde "Bildirim URL" olarak `https://<alan-adınız>/api/payments/paytr/callback` girilmelidir.
+- Anahtarlar **yoksa ve development ortamındaysa** sahte ödeme sağlayıcısı devreye girer: ödeme sayfası yerine, ödemeyi başarılı/başarısız saymanızı sağlayan yerel bir sayfa açılır. Gerçek tahsilat yapılmaz.
+- Callback idempotenttir ve imza doğrulaması zorunludur; tutar uyuşmazlığında ödeme kabul edilmez.
+- Süresi dolan ödeme bekleyen siparişler worker tarafından iptal edilir ve rezerve stok serbest bırakılır.
+
+**Canlıya geçmeden önce** PayTR test modunda (`PAYTR_TEST_MODE=true`) gerçek bir sandbox ödemesi denenmelidir; alan biçimleri (tutar gösterimi, bildirim alanları) PayTR güncel dokümanıyla doğrulanmalıdır.
 
 ## Vitrin mimarisi
 
