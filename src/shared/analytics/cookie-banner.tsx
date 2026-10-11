@@ -29,14 +29,14 @@ export function CookieBanner() {
           <button
             type="button"
             onClick={() => writeConsent("denied")}
-            className="rounded-theme border border-border px-4 py-2 text-sm"
+            className="whitespace-nowrap rounded-theme border border-border px-4 py-2 text-sm"
           >
             Reddet
           </button>
           <button
             type="button"
             onClick={() => writeConsent("granted")}
-            className="rounded-theme bg-primary px-4 py-2 text-sm text-primary-foreground"
+            className="whitespace-nowrap rounded-theme bg-primary px-4 py-2 text-sm text-primary-foreground"
           >
             Kabul et
           </button>

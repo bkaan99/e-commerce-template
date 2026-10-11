@@ -331,6 +331,7 @@ export class CatalogService {
       slug: record.slug,
       name: record.name,
       description: record.description,
+      categoryId: record.categoryId,
       brand: record.brand,
       breadcrumbs: buildBreadcrumbs(categories, record.categoryId),
       seoTitle: record.seoTitle,

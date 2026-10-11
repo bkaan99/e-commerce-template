@@ -108,6 +108,7 @@ export interface ProductDetail {
   slug: string;
   name: string;
   description: string | null;
+  categoryId: string;
   brand: { name: string; slug: string } | null;
   breadcrumbs: CategoryBreadcrumb[];
   seoTitle: string | null;

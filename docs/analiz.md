@@ -1,6 +1,6 @@
 # E-Ticaret Şablonu: Analiz ve Mimari Plan
 
-> Durum: **v0.1 İskelet tamamlandı** (dal: `phase/v0.1-skeleton`, inceleme bekliyor). Sonraki fazlara yalnızca proje sahibinin açık "başla" demesiyle geçilir.
+> Durum: **v0.1 İskelet ve v0.2 Vitrin tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
 > Son güncelleme: 2026-10-11
 
 ## 1. Amaç
@@ -264,6 +264,16 @@ Uygulama sırasında alınan teknik kararlar:
 - **Varsayılan veritabanı portu 5433:** yerel makinelerde 5432'nin sık dolu olması nedeniyle seçildi.
 - **Bilinen sınırlar:** CSP `unsafe-inline` içerir (nonce tabanlı CSP tüm sayfaları dinamik yapacağından ertelendi). `npm audit` geliştirme bağımlılıklarında (`eslint-config-next` → `braces`) uyarı verir; çalışma zamanını etkilemez.
 
-## 13. Çalışma Kuralı
+## 13. v0.2 Uygulama Notları
+
+- **Listeleme sıralaması bellek içinde yapılır.** Fiyata göre sıralama için `searchListing` aktif ürünlerin kimlik ve en düşük fiyatını çeker, sıralama ve sayfalama serviste yapılır. Bu yaklaşım birkaç bin ürüne kadar yeterlidir; daha büyük kataloglarda `CatalogRepository` arkasında SQL tabanlı sıralamaya geçilmelidir.
+- **Favoriler ürün bazlıdır** (`WishlistItem.productId`); kullanıcılar bedeni değil ürünü favorilere alır.
+- **Bilinmeyen kategori/ürün adreslerinde durum kodu 200 dönebilir.** Cache Components altında içerik akıtıldığından başlık gönderildikten sonra `notFound()` durumu değiştiremez; Next.js sayfaya `noindex` ekler ve 404 arayüzünü gösterir. Arama motorları için sorun yaratmaz ama izleme araçlarında 404 sayılmaz.
+- **`use cache` kullanılmadı.** Kategori ağacı gibi veriler `use cache` ile build sırasında veritabanından okunurdu; şablonun build'i veritabanı gerektirmesin diye bilinçli olarak istek anında okunur. Performans fazında (v0.6) önbellek stratejisi yeniden değerlendirilecek.
+- **Oturum okuyan her kod `connection()` ile istek anına alınır** (Auth.js rastgele değer ürettiği için prerender sırasında hata verirdi).
+- **shadcn/ui henüz eklenmedi.** Vitrin sade Tailwind bileşenleriyle yazıldı; admin fazında (v0.4) form ve tablo bileşenleri için eklenecek.
+- **Slug değişince yönlendirme:** `Redirect` tablosu ve sayfa tarafındaki 301 yönlendirmesi hazır; kayıtları admin paneli (v0.4) üretecek.
+
+## 14. Çalışma Kuralı
 
 Kod yazımına, proje sahibi açıkça "başla" demeden geçilmez.
