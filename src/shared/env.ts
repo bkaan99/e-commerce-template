@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { features, type Features } from "@/config/features";
 
 const optionalString = z
   .string()
@@ -52,13 +53,36 @@ export class EnvValidationError extends Error {
   }
 }
 
-export function parseEnv(source: Record<string, string | undefined>): Env {
+/** Yalnızca ilgili özellik açıksa zorunlu olan anahtarlar. */
+function featureIssues(env: Env, enabled: Pick<Features, "captcha">): string[] {
+  const issues: string[] = [];
+
+  if (enabled.captcha) {
+    for (const key of ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"] as const) {
+      if (!env[key]) {
+        issues.push(`${key}: captcha özelliği açıkken zorunludur`);
+      }
+    }
+  }
+
+  return issues;
+}
+
+export function parseEnv(
+  source: Record<string, string | undefined>,
+  enabled: Pick<Features, "captcha"> = features,
+): Env {
   const result = envSchema.safeParse(source);
 
   if (!result.success) {
     const issues = result.error.issues.map(
       (issue) => `${issue.path.join(".")}: ${issue.message}`,
     );
+    throw new EnvValidationError(issues);
+  }
+
+  const issues = featureIssues(result.data, enabled);
+  if (issues.length > 0) {
     throw new EnvValidationError(issues);
   }
 
