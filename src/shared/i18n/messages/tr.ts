@@ -20,6 +20,7 @@ export const tr = {
     title: "Sepetim",
     empty: "Sepetiniz boş.",
     addToCart: "Sepete ekle",
+    itemCount: "{count} ürün",
   },
   product: {
     outOfStock: "Tükendi",

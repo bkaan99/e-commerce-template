@@ -20,7 +20,11 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "worker": "tsx --conditions react-server src/worker/index.ts"
+    "worker": "tsx --conditions react-server src/worker/index.ts",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "test:watch": "vitest --project unit"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.2",
@@ -51,6 +55,7 @@
     "prisma": "7.10.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   }
 }
