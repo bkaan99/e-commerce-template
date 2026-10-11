@@ -1,6 +1,6 @@
 # E-Ticaret Şablonu: Analiz ve Mimari Plan
 
-> Durum: **v0.1 İskelet, v0.2 Vitrin ve v0.3 Satış tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
+> Durum: **v0.1 İskelet, v0.2 Vitrin, v0.3 Satış ve v0.4 Admin tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
 > Son güncelleme: 2026-10-11
 
 ## 1. Amaç
@@ -299,6 +299,30 @@ Uygulama sırasında alınan teknik kararlar:
 - Kargo firması entegrasyonları ve takip numarası girişi admin panelinde (v0.4) gelecek; `order.shipped` olayı ve e-posta şablonu hazır.
 - `npm audit` dev bağımlılıklarında uyarı verir (v0.1 notuna bakın).
 
-## 15. Çalışma Kuralı
+## 15. v0.4 Uygulama Notları
+
+**Kapsama alınanlar:** yönetim paneli kabuğu (yetkiye göre menü), pano (ciro/sipariş karşılaştırması, en çok satanlar, düşük stok, stok talebi), sipariş yönetimi (durum makinesi, kargo/takip no, teslim, personel iptali ve iadesi), iade talepleri (müşteri talebi → admin onayı → kısmi iade + stoğa geri alma), ürün yönetimi (çoklu eksen varyant, nitelik, görsel, SEO, slug değişince 301), kategori/nitelik/marka yönetimi, kupon ve kampanya yönetimi, müşteri listesi, içerik yönetimi (banner, statik sayfa, menü), denetim günlüğü ekranı, sipariş/ürün CSV dışa aktarma.
+
+**Teknik kararlar**
+
+- **UI bileşenleri shadcn tarzıdır ama Radix bağımlılığı yoktur:** `class-variance-authority` + `tailwind-merge` ile sade (Button, Input, Select, Card, Table, Badge). Dialog yerine tarayıcı `confirm` kullanıldı; gerçek bir dialog ihtiyacı doğarsa eklenir.
+- **Yetki iki katmanlı:** sayfalar `adminPage(permission)` ile "erişim yok" gösterir; Server Action'lar `runAdminAction` içinde `requirePermission` ile sunucuda tekrar doğrular. Menü gizleme güvenlik sınırı değildir.
+- **Her yönetim değişikliği denetim kaydına yazılır** (`order.ship`, `product.update`, `return.approve`, `coupon.create`, …); eski/yeni değerler JSON olarak tutulur.
+- **Sipariş durum geçişi koşullu güncellemeyle yapılır** (`updateMany ... where status in (izinli kaynaklar)`); iki yönetici aynı anda işlem yaparsa biri "durumu değişmiş" hatası alır.
+- **Ürün düzenlemede varyant silinmez, pasifleştirilir:** sipariş geçmişi ve sepet bağları korunur. Seçenek değerleri yalnızca eklenir.
+- **İade tutarı** ürün tutarının siparişteki indirim oranı kadar düşürülmüş halidir; kargo ücreti iade edilmez. Önce sağlayıcı iadesi yapılır, başarısızsa talep açık kalır.
+- **Statik sayfa içeriği HTML değildir:** küçük, güvenli bir işaretleme dili (başlık, liste, kalın, bağlantı) ayrıştırılıp React öğesi olarak çizilir; `dangerouslySetInnerHTML` kullanılmaz ve yalnızca `http(s)` ile site içi bağlantılara izin verilir.
+- **CSV dışa aktarma formül enjeksiyonuna karşı korumalıdır** (=, +, -, @ ile başlayan hücreler etkisizleştirilir) ve her indirme denetim kaydına yazılır.
+- **Admin sayfaları yetki kontrolünü Suspense içinde yapar**; Cache Components altında parametre/oturum okuyan her şey istek anında çalışır.
+
+**Bilinçli olarak sonraya bırakılanlar**
+
+- Panelden özel rol oluşturma ve kullanıcı/personel yönetimi ekranı (roller seed ile gelir): **v0.6**.
+- Ürün görseli yükleme (şimdilik adres girilir; storage adapter v0.6), ürün içe aktarma ve toplu fiyat/stok güncelleme: **v0.6**.
+- Bayi başvuru onayı, müşteri grubu ve fiyat listesi ekranları: **v0.5** (B2B).
+- İade durumu e-postası ve gelişmiş rapor filtreleri (tarih aralığı seçimi): **v0.6**.
+- Stok sayımı için ayrı bir "toplu stok güncelleme" ekranı yok; stok ürün formundan güncellenir.
+
+## 16. Çalışma Kuralı
 
 Kod yazımına, proje sahibi açıkça "başla" demeden geçilmez.

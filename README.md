@@ -3,7 +3,7 @@
 Türkiye pazarına yönelik e-ticaret siteleri için Next.js tabanlı, kopyalanıp kullanılan şablon.
 PayTR ödeme, B2B bayi desteği, yönetim paneli ve temiz katmanlı mimari hedefler.
 
-> **Durum:** v0.3 Satış tamamlandı (checkout, PayTR ödeme, sipariş, iptal/iade, e-posta, kupon/kampanya, üyelik, stok bildirimi). Admin ekranları (v0.4) ve B2B (v0.5) sonraki fazlarda gelir.
+> **Durum:** v0.4 Admin tamamlandı (yönetim paneli: pano, sipariş/kargo/iade, ürün-kategori-nitelik, kupon/kampanya, müşteri, içerik, denetim günlüğü, CSV dışa aktarma). B2B (v0.5) ve cila (v0.6) sonraki fazlarda gelir.
 > Plan ve kararlar: [docs/analiz.md](docs/analiz.md)
 
 ## Gereksinimler
@@ -33,7 +33,10 @@ npm run worker   # arka plan işleri (ayrı terminalde)
 - Vitrin: `/` ana sayfa, `/kategori/<slug>`, `/urun/<slug>`, `/ara?q=`, `/sepet`, `/favoriler`
 - Satış: `/odeme`, `/siparis/<no>`, `/siparis-sorgula`; üyelik: `/kayit`, `/giris`, `/hesabim`, `/sifremi-unuttum`
 - SEO: `/sitemap.xml`, `/robots.txt`, ürün sayfalarında JSON-LD
-- Yönetim paneli: `/admin` (giriş: `/giris`)
+- Yönetim paneli: `/admin` (giriş: `/giris`). Menü, kullanıcının yetkilerine göre görünür.
+  - Pano, siparişler (kargola, teslim, iptal/iade), iade talepleri, ürünler (varyant/stok/görsel/SEO), kategoriler, nitelikler ve markalar, kupon ve kampanyalar, müşteriler, içerik (banner, sayfa, menü), denetim günlüğü
+  - CSV dışa aktarma: `/admin/disa-aktar/siparisler` ve `/admin/disa-aktar/urunler`
+  - Statik sayfalar: `/sayfa/<slug>`
 - Gelen e-postalar (Mailpit): http://localhost:8025
 - Sağlık kontrolü: `/api/health` ve `/api/health/ready`
 
@@ -62,7 +65,7 @@ Yalnızca yapılandırma dosyalarını üretmek için: `npm run init-project -- 
 ```
 src/
   app/            Yönlendirme ve sayfalar (admin: app/(admin))
-  modules/        İş mantığı: auth, account, catalog, cart, checkout, orders, notifications, stock-alerts, wishlist
+  modules/        İş mantığı: auth, account, catalog, cart, checkout, orders, returns, content, reporting, notifications, stock-alerts, wishlist, admin
   components/     Vitrin bileşenleri (storefront, product, wishlist)
   integrations/   Dış servis adapter'ları (PayTR, kargo, ...)
   shared/         Ortak altyapı: env, db, hata, para, logger, kuyruk, rate limit, audit, i18n
