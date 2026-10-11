@@ -10,6 +10,10 @@ import {
   renderStockAvailable,
   type EmailContext,
 } from "./templates/order-emails";
+import {
+  renderEmailVerification,
+  renderPasswordReset,
+} from "./templates/account-emails";
 import type { RenderedEmail } from "./templates/layout";
 
 export const JOB_SEND_EMAIL = "email.send";
@@ -63,6 +67,20 @@ export class NotificationService {
     await this.enqueue(
       email,
       renderStockAvailable(product, this.context, unsubscribeUrl),
+    );
+  }
+
+  async sendEmailVerification(email: string, link: string): Promise<void> {
+    await this.enqueue(
+      email,
+      renderEmailVerification(link, { siteName: this.context.siteName }),
+    );
+  }
+
+  async sendPasswordReset(email: string, link: string): Promise<void> {
+    await this.enqueue(
+      email,
+      renderPasswordReset(link, { siteName: this.context.siteName }),
     );
   }
 

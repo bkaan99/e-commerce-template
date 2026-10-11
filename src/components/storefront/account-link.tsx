@@ -14,7 +14,7 @@ export async function AccountLink() {
 
   return (
     <Link
-      href={user.type === "STAFF" ? "/admin" : "/giris"}
+      href={user.type === "STAFF" ? "/admin" : "/hesabim"}
       className="text-sm"
     >
       {user.name || user.email}
