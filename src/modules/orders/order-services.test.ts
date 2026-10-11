@@ -61,6 +61,9 @@ class FakeOrders implements OrderRepository {
   async createPendingOrder(): Promise<never> {
     throw new Error("kullanılmaz");
   }
+  async findById(id: string) {
+    return this.order && this.order.id === id ? this.order : null;
+  }
   async findByOrderNumber(number: string) {
     return this.order && this.order.orderNumber === number ? this.order : null;
   }

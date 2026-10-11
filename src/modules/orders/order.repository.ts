@@ -22,6 +22,7 @@ export interface PaymentResultInput {
 
 export interface OrderRepository {
   createPendingOrder(order: NewOrder): Promise<CreatedOrder>;
+  findById(orderId: string): Promise<OrderView | null>;
   findByOrderNumber(orderNumber: string): Promise<OrderView | null>;
   findByLookupToken(token: string): Promise<OrderView | null>;
   listByUser(userId: string): Promise<OrderView[]>;
@@ -198,6 +199,14 @@ export class PrismaOrderRepository implements OrderRepository {
         merchantOid: orderNumber,
       };
     });
+  }
+
+  async findById(orderId: string): Promise<OrderView | null> {
+    const row = await this.db().order.findUnique({
+      where: { id: orderId },
+      include: orderInclude,
+    });
+    return row ? toView(row) : null;
   }
 
   async findByOrderNumber(orderNumber: string): Promise<OrderView | null> {

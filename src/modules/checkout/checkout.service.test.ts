@@ -114,6 +114,9 @@ class FakeOrders implements OrderRepository {
   async countCouponUses() {
     return this.couponUses;
   }
+  async findById() {
+    return null;
+  }
   async findByOrderNumber() {
     return null;
   }
