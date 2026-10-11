@@ -171,9 +171,18 @@ export default function AdminProductsPage({
       <PageHeader
         title="Ürünler"
         actions={
-          <Link href="/admin/urunler/yeni" className={cn(buttonVariants())}>
-            Yeni ürün
-          </Link>
+          <>
+            <a
+              href="/admin/disa-aktar/urunler"
+              className="self-center text-sm underline"
+              download
+            >
+              CSV olarak indir
+            </a>
+            <Link href="/admin/urunler/yeni" className={cn(buttonVariants())}>
+              Yeni ürün
+            </Link>
+          </>
         }
       />
       <Suspense

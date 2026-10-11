@@ -163,7 +163,18 @@ export default function AdminOrdersPage({
 }: PageProps<"/admin/siparisler">) {
   return (
     <>
-      <PageHeader title="Siparişler" />
+      <PageHeader
+        title="Siparişler"
+        actions={
+          <a
+            href="/admin/disa-aktar/siparisler"
+            className="text-sm underline"
+            download
+          >
+            CSV olarak indir
+          </a>
+        }
+      />
       <Suspense
         fallback={<p className="text-muted-foreground">Yükleniyor...</p>}
       >

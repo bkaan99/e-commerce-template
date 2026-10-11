@@ -8,6 +8,8 @@ import { PrismaTaxonomyRepository } from "./taxonomy/taxonomy.repository";
 import { TaxonomyService } from "./taxonomy/taxonomy.service";
 import { PrismaPromotionRepository } from "./promotions/promotion.repository";
 import { PromotionService } from "./promotions/promotion.service";
+import { AuditQueryService } from "./audit/audit-query";
+import { CustomerQueryService } from "./customers/customer-query";
 import { PrismaAdminOrderRepository } from "./orders/admin-order.repository";
 import { AdminOrderService } from "./orders/admin-order.service";
 
@@ -40,4 +42,12 @@ export function getPromotionService(): PromotionService {
     new PrismaPromotionRepository(getDb),
     getAuditLogger(),
   );
+}
+
+export function getAuditQueryService(): AuditQueryService {
+  return new AuditQueryService(getDb);
+}
+
+export function getCustomerQueryService(): CustomerQueryService {
+  return new CustomerQueryService(getDb);
 }
