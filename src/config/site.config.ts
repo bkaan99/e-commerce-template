@@ -25,7 +25,14 @@ export interface SiteConfig {
   shipping: {
     /** Bu tutarın üzerindeki siparişlerde kargo ücretsiz */
     freeShippingThreshold: number;
+    /** Desi tarifesi tanımlı değilse uygulanan sabit ücret */
     flatRate: number;
+    /** Toplam desi ≤ maxDesi olan ilk kademenin ücreti uygulanır (artan sırada) */
+    desiTariff: { maxDesi: number; price: number }[];
+    /** Son kademeyi aşan her ek desi için eklenen ücret */
+    extraDesiPrice: number;
+    /** Kargo ücretinin KDV oranı (yüzde) */
+    taxRate: number;
   };
   inventory: {
     /** Ödeme başlatıldığında stoğun rezerve tutulacağı süre */
@@ -52,6 +59,9 @@ const defaultSiteConfig: SiteConfig = {
   shipping: {
     freeShippingThreshold: 500,
     flatRate: 49.9,
+    desiTariff: [],
+    extraDesiPrice: 5,
+    taxRate: 20,
   },
   inventory: {
     reservationMinutes: 15,

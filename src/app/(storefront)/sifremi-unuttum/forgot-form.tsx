@@ -1,19 +1,18 @@
 "use client";
 
 import { useActionState } from "react";
-import { loginAction, type LoginState } from "./actions";
+import { forgotPasswordAction, type ForgotState } from "./actions";
 
-const initialState: LoginState = {};
+const initial: ForgotState = {};
 
-export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
+export function ForgotForm({ captcha }: { captcha?: React.ReactNode }) {
   const [state, formAction, pending] = useActionState(
-    loginAction,
-    initialState,
+    forgotPasswordAction,
+    initial,
   );
 
   return (
     <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
-      <input type="hidden" name="callbackUrl" value={callbackUrl} />
       <label className="flex flex-col gap-1 text-sm">
         E-posta
         <input
@@ -24,19 +23,15 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
           className="rounded-theme border border-border px-3 py-2"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Parola
-        <input
-          name="password"
-          type="password"
-          required
-          autoComplete="current-password"
-          className="rounded-theme border border-border px-3 py-2"
-        />
-      </label>
+      {captcha}
       {state.error ? (
         <p role="alert" className="text-sm text-red-600">
           {state.error}
+        </p>
+      ) : null}
+      {state.message ? (
+        <p role="status" className="text-sm text-green-700">
+          {state.message}
         </p>
       ) : null}
       <button
@@ -44,7 +39,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
         disabled={pending}
         className="rounded-theme bg-primary px-4 py-2 text-primary-foreground disabled:opacity-60"
       >
-        {pending ? "Giriş yapılıyor..." : "Giriş yap"}
+        {pending ? "Gönderiliyor..." : "Sıfırlama bağlantısı gönder"}
       </button>
     </form>
   );

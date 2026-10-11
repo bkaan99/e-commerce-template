@@ -7,8 +7,19 @@ export class PgBossJobQueue implements JobQueue {
   private started: Promise<void> | undefined;
   private readonly knownQueues = new Set<string>();
 
-  constructor(connectionString: string) {
-    this.boss = new PgBoss(connectionString);
+  /**
+   * `background: false` (web süreci) yalnızca iş ekler; zamanlama ve bakım
+   * (supervise) görevlerini worker süreci yürütür.
+   */
+  constructor(
+    connectionString: string,
+    options: { background: boolean } = { background: true },
+  ) {
+    this.boss = new PgBoss({
+      connectionString,
+      schedule: options.background,
+      supervise: options.background,
+    });
     this.boss.on("error", (error) => {
       logger.error({ err: error }, "pg-boss hatası");
     });

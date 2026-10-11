@@ -1,13 +1,19 @@
 import "dotenv/config";
 import { logger } from "@/shared/logger";
-import { getJobQueue } from "@/shared/queue";
+import { getWorkerQueue } from "@/shared/queue";
+import { registerEmailJobs } from "./jobs/email";
 import { registerMaintenanceJobs } from "./jobs/maintenance";
+import { registerOrderJobs } from "./jobs/orders";
+import { registerStockAlertJobs } from "./jobs/stock-alerts";
 
 /** Arka plan işlerini işleyen ayrı süreç. Çalıştırmak için: npm run worker */
 async function main(): Promise<void> {
-  const queue = getJobQueue();
+  const queue = getWorkerQueue();
 
   await registerMaintenanceJobs(queue);
+  await registerEmailJobs(queue);
+  await registerOrderJobs(queue);
+  await registerStockAlertJobs(queue);
   logger.info("Worker başlatıldı");
 
   const shutdown = async (signal: string): Promise<void> => {

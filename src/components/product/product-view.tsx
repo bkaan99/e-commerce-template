@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { addToCartAction } from "@/app/(storefront)/sepet/actions";
+import { StockAlertForm } from "./stock-alert-form";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import { Price } from "@/components/storefront/price";
 import type { ProductDetail } from "@/modules/catalog/catalog.types";
@@ -218,6 +219,10 @@ export function ProductView({
                 ? "Sepete ekle"
                 : "Tükendi"}
         </button>
+
+        {variant && !variant.inStock ? (
+          <StockAlertForm key={variant.id} variantId={variant.id} />
+        ) : null}
 
         {variant?.inStock &&
         variant.availableQuantity !== null &&

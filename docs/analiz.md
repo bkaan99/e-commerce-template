@@ -1,6 +1,6 @@
 # E-Ticaret Şablonu: Analiz ve Mimari Plan
 
-> Durum: **v0.1 İskelet ve v0.2 Vitrin tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
+> Durum: **v0.1 İskelet, v0.2 Vitrin ve v0.3 Satış tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
 > Son güncelleme: 2026-10-11
 
 ## 1. Amaç
@@ -274,6 +274,31 @@ Uygulama sırasında alınan teknik kararlar:
 - **shadcn/ui henüz eklenmedi.** Vitrin sade Tailwind bileşenleriyle yazıldı; admin fazında (v0.4) form ve tablo bileşenleri için eklenecek.
 - **Slug değişince yönlendirme:** `Redirect` tablosu ve sayfa tarafındaki 301 yönlendirmesi hazır; kayıtları admin paneli (v0.4) üretecek.
 
-## 14. Çalışma Kuralı
+## 14. v0.3 Uygulama Notları
+
+**Kapsama alınanlar:** checkout (misafir/üyeli), adres ve fatura bilgisi doğrulaması (cep telefonu, T.C. kimlik no, VKN), kupon ve otomatik kampanyalar (`DiscountRule`), kargo ücreti (`ShippingRateCalculator`), stok rezervasyonu, PayTR iFrame ödeme ve callback, sipariş sayfası, misafir sipariş sorgulama, müşteri iptali ve iadesi, e-posta bildirimleri (kuyruk + worker), üyelik (kayıt, e-posta doğrulama, parola sıfırlama), hesap sayfası, stok bildirimi, Turnstile entegrasyonu (bayrakla).
+
+**Teknik kararlar**
+
+- **Stok rezervasyonu tek SQL ile:** `UPDATE ... WHERE stock - reserved >= qty` koşullu güncellemesi eşzamanlı siparişlerde fazla satışı önler; testte 6 eşzamanlı siparişten yalnızca stok kadarı başarılı olur.
+- **Ödeme sonucu idempotent:** yalnızca `PENDING` ödeme işlenir (`updateMany ... where status = PENDING`); aynı bildirimin tekrarı veya eşzamanlı çifti stoğu bir kez düşer.
+- **Tutar doğrulaması:** sağlayıcının bildirdiği tutar sipariş tutarıyla eşleşmezse ödeme kabul edilmez ve `amount-mismatch` olarak loglanır.
+- **PayTR sepeti tek satır gönderilir** (`Sipariş <no>`, toplam tutar). İndirim, kargo ve KDV zaten toplamdadır; böylece sepet toplamı ile `payment_amount` her zaman tutarlıdır.
+- **Sağlayıcı yetenek arayüzleri:** `PaymentInitiator`, `PaymentCallbackVerifier`, `PaymentRefunder` ve bunları birleştiren `PaymentProvider`. PayTR anahtarı yokken geliştirmede `DevPaymentProvider` kullanılır.
+- **İptal ve iade sırası:** ödenmiş siparişte önce sağlayıcı iadesi yapılır; iade başarısızsa sipariş değişmeden kalır.
+- **Oturum çerezi adı şablona özeldir** (`ecommerce.session-token`): aynı `localhost` üzerinde çalışan başka Auth.js projeleriyle çakışmayı önler.
+- **İmzalı belirteçler** (e-posta doğrulama, parola sıfırlama, stok bildirimi iptali) durumsuzdur; parola sıfırlama belirteci parola özetine bağlıdır, parola değişince aynı bağlantı tekrar kullanılamaz.
+- **E-postalar kuyruktan gider:** web süreci `email.send` işini ekler, worker SMTP ile gönderir; hata olursa pg-boss yeniden dener.
+- **Web ve worker kuyrukları ayrıdır:** web süreci yalnızca iş ekler (`supervise`/`schedule` kapalı), zamanlama ve bakımı worker yürütür.
+
+**Bilinçli olarak sonraya bırakılanlar**
+
+- Adres defteri, "tekrar sipariş ver", profil ve parola değiştirme ekranları, hesap silme ve veri dışa aktarma (KVKK): **v0.6**.
+- Uçtan uca (Playwright) testleri: **v0.6**; kritik akışlar şu an birim ve veritabanlı entegrasyon testleriyle doğrulanıyor.
+- İl/ilçe seçimi: il listesi hazır, ilçe serbest metindir (ilçe veri seti v0.6).
+- Kargo firması entegrasyonları ve takip numarası girişi admin panelinde (v0.4) gelecek; `order.shipped` olayı ve e-posta şablonu hazır.
+- `npm audit` dev bağımlılıklarında uyarı verir (v0.1 notuna bakın).
+
+## 15. Çalışma Kuralı
 
 Kod yazımına, proje sahibi açıkça "başla" demeden geçilmez.

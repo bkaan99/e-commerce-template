@@ -2,7 +2,8 @@
 
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
-import { RateLimitError } from "@/shared/errors";
+import { RateLimitError, isAppError } from "@/shared/errors";
+import { verifyCaptcha } from "@/shared/captcha";
 import {
   RATE_LIMIT_POLICIES,
   enforceRateLimit,
@@ -18,7 +19,11 @@ export async function loginAction(
   formData: FormData,
 ): Promise<LoginState> {
   const callbackUrl = String(formData.get("callbackUrl") ?? "");
-  const redirectTo = callbackUrl.startsWith("/") ? callbackUrl : "/admin";
+  // Açık yönlendirmeyi önlemek için yalnızca site içi yollar kabul edilir.
+  const redirectTo =
+    callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/hesabim";
 
   const email = String(formData.get("email") ?? "")
     .trim()
@@ -28,6 +33,10 @@ export async function loginAction(
     const ip = await getClientIp();
     await enforceRateLimit("login:ip", ip, RATE_LIMIT_POLICIES.login);
     await enforceRateLimit("login:email", email, RATE_LIMIT_POLICIES.login);
+    await verifyCaptcha(
+      String(formData.get("cf-turnstile-response") ?? "") || null,
+      ip,
+    );
 
     await signIn("credentials", {
       email,
@@ -35,7 +44,7 @@ export async function loginAction(
       redirectTo,
     });
   } catch (error) {
-    if (error instanceof RateLimitError) {
+    if (error instanceof RateLimitError || isAppError(error)) {
       return { error: error.message };
     }
     if (error instanceof AuthError) {
