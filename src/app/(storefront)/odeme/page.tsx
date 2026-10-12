@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/modules/auth/session";
 import { getCartIdentity } from "@/modules/cart/cart.session";
 import { getCheckoutService } from "@/modules/orders/container";
 import { isAppError } from "@/shared/errors";
+import type { PaymentOption } from "@/modules/checkout/checkout.service";
 import { CheckoutForm } from "./checkout-form";
 
 export const metadata: Metadata = {
@@ -27,11 +28,16 @@ async function CheckoutContent({
   ]);
 
   let quote;
+  let paymentOptions: PaymentOption[] = [];
   try {
     quote = await getCheckoutService().quote(
       identity,
       coupon ? coupon.trim().toUpperCase() : null,
       { userId: user?.id ?? null, email: user?.email ?? null },
+    );
+    paymentOptions = await getCheckoutService().paymentOptions(
+      identity,
+      quote.grandTotal,
     );
   } catch (error) {
     if (isAppError(error) && error.message === "Sepetiniz boş")
@@ -67,7 +73,11 @@ async function CheckoutContent({
           })),
         }}
       />
-      <CheckoutForm defaultEmail={user?.email ?? ""} defaultCoupon={coupon} />
+      <CheckoutForm
+        defaultEmail={user?.email ?? ""}
+        defaultCoupon={coupon}
+        paymentOptions={paymentOptions}
+      />
 
       <aside className="flex h-fit flex-col gap-3 rounded-theme border border-border p-5">
         <h2 className="font-semibold">Sipariş özeti</h2>

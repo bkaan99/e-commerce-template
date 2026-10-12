@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Price } from "@/components/storefront/price";
+import { siteConfig } from "@/config/site.config";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getOrderService } from "@/modules/orders/container";
 import {
@@ -94,7 +95,39 @@ async function OrderContent({
         ) : null}
       </header>
 
-      {awaitingPayment && !failedReturn ? <OrderStatusPoller /> : null}
+      {awaitingPayment && order.paymentMethod === "BANK_TRANSFER" ? (
+        <section className="flex flex-col gap-3 rounded-theme border border-amber-300 bg-amber-50 p-5 text-sm">
+          <h2 className="text-lg font-semibold">Havale / EFT ile ödeme</h2>
+          <p>
+            Lütfen <strong>{order.grandTotal} TL</strong> tutarı aşağıdaki
+            hesaplardan birine gönderin ve açıklama alanına{" "}
+            <strong>{order.orderNumber}</strong> yazın. Ödemeniz onaylandığında
+            siparişiniz hazırlanır.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {siteConfig.b2b.bankAccounts.map((account) => (
+              <li key={account.iban}>
+                {account.bank} · {account.accountName}
+                <br />
+                <span className="font-mono">{account.iban}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {order.paymentMethod === "DEFERRED" &&
+      order.paymentStatus === "PENDING" &&
+      order.paymentDueAt ? (
+        <p className="rounded-theme border border-border p-4 text-sm">
+          Vadeli ödeme: son ödeme tarihi{" "}
+          <strong>{order.paymentDueAt.toLocaleDateString("tr-TR")}</strong>.
+        </p>
+      ) : null}
+
+      {awaitingPayment && !failedReturn && order.paymentMethod === "CARD" ? (
+        <OrderStatusPoller />
+      ) : null}
 
       {order.trackingNumber ? (
         <p>

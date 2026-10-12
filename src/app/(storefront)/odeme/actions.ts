@@ -74,6 +74,7 @@ export async function placeOrderAction(
     billingAddress: sameBilling ? undefined : readAddress(formData, "billing"),
     couponCode: text(formData, "couponCode"),
     customerNote: text(formData, "customerNote"),
+    paymentMethod: text(formData, "paymentMethod") || "CARD",
     acceptTerms: formData.get("acceptTerms") === "on",
   });
 
@@ -86,6 +87,7 @@ export async function placeOrderAction(
 
   let orderNumber: string;
   let lookupToken: string;
+  let method: "CARD" | "BANK_TRANSFER" | "DEFERRED" = "CARD";
 
   try {
     const ip = await getClientIp();
@@ -98,13 +100,19 @@ export async function placeOrderAction(
     );
     orderNumber = created.orderNumber;
     lookupToken = created.lookupToken;
+    method = parsed.data.paymentMethod;
   } catch (error) {
     if (isAppError(error)) return { message: error.message };
     reportError(error, { action: "placeOrder" });
     return { message: "Siparişiniz oluşturulamadı, lütfen tekrar deneyin." };
   }
 
-  redirect(`/odeme/ode/${orderNumber}?t=${lookupToken}`);
+  // Kart ödemesi güvenli ödeme sayfasına, havale/vadeli sipariş detay sayfasına gider.
+  redirect(
+    method === "CARD"
+      ? `/odeme/ode/${orderNumber}?t=${lookupToken}`
+      : `/siparis/${orderNumber}?t=${lookupToken}`,
+  );
 }
 
 /** Geliştirme ortamında sahte ödeme sayfasından sonucu bildirir. */
