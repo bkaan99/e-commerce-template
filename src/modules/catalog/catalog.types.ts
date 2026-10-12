@@ -30,6 +30,8 @@ export interface ProductCard {
   brandName: string | null;
   imageUrl: string | null;
   imageAlt: string;
+  /** false ise fiyat gösterilmez (yalnızca-B2B modunda girişsiz ziyaretçi) */
+  priceVisible: boolean;
   /** En düşük aktif varyant fiyatı (ondalık string) */
   price: string;
   compareAtPrice: string | null;
@@ -108,6 +110,7 @@ export interface ProductDetail {
   slug: string;
   name: string;
   description: string | null;
+  priceVisible: boolean;
   categoryId: string;
   brand: { name: string; slug: string } | null;
   breadcrumbs: CategoryBreadcrumb[];

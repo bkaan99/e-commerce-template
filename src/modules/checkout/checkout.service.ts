@@ -92,7 +92,15 @@ export class CheckoutService {
     owner: { userId: string | null; email: string | null },
   ): Promise<CheckoutQuote> {
     const { cartId, lines } = await this.loadSellableLines(identity);
-    return (await this.compute(cartId, lines, couponCode, owner)).quote;
+    return (
+      await this.compute(
+        cartId,
+        lines,
+        couponCode,
+        owner,
+        identity.customerGroupId ?? null,
+      )
+    ).quote;
   }
 
   async placeOrder(
@@ -104,10 +112,13 @@ export class CheckoutService {
     }
 
     const { cartId, lines } = await this.loadSellableLines(identity);
-    const computed = await this.compute(cartId, lines, input.couponCode, {
-      userId: identity.userId,
-      email: input.email,
-    });
+    const computed = await this.compute(
+      cartId,
+      lines,
+      input.couponCode,
+      { userId: identity.userId, email: input.email },
+      identity.customerGroupId ?? null,
+    );
 
     const items: NewOrderItem[] = computed.priced.map((entry, index) => ({
       variantId: entry.record.variantId,
@@ -187,13 +198,19 @@ export class CheckoutService {
     lines: CheckoutLineRecord[],
     couponCode: string | null,
     owner: { userId: string | null; email: string | null },
+    customerGroupId: string | null,
   ) {
+    const unitPrices = await this.priceResolver.resolveUnitPrices(
+      lines.map((record) => ({
+        variantId: record.variantId,
+        listPrice: record.price,
+        quantity: record.quantity,
+      })),
+      { customerGroupId },
+    );
     const priced: PricedLine[] = lines.map((record) => ({
       record,
-      unitPrice: this.priceResolver.resolveUnitPrice(
-        { id: record.variantId, price: record.price },
-        { customerGroupId: null, quantity: record.quantity },
-      ),
+      unitPrice: unitPrices.get(record.variantId) ?? toDecimal(record.price),
     }));
 
     const subtotal = priced.reduce(

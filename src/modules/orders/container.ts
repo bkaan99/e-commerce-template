@@ -9,6 +9,7 @@ import { getEventBus } from "@/shared/events";
 import { getJobQueue } from "@/shared/queue";
 import { getSiteUrl } from "@/shared/site-url";
 import { cartService } from "../cart/container";
+import { priceResolver } from "../catalog/container";
 import { PrismaCheckoutRepository } from "../checkout/checkout.repository";
 import { CheckoutService } from "../checkout/checkout.service";
 import { ConfiguredShippingRateCalculator } from "../checkout/shipping";
@@ -93,6 +94,7 @@ export function getOrderService(): OrderService {
 export function getCheckoutService(): CheckoutService {
   return new CheckoutService({
     carts: cartService,
+    priceResolver,
     checkout: new PrismaCheckoutRepository(getDb),
     orders: orderRepository,
     shipping: new ConfiguredShippingRateCalculator(),
