@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
 import {
   ReportingService,
+  parseReportPeriod,
   percentChange,
   type ReportingRepository,
 } from "./reporting.service";
@@ -77,5 +78,15 @@ describe("ReportingService.dashboard", () => {
   it("siparişsiz dönemde ortalama sıfırdır", async () => {
     const service = new ReportingService(repo(["0", 0], ["0", 0]), 5);
     expect((await service.dashboard()).averageOrderValue).toBe("0.00");
+  });
+});
+
+describe("parseReportPeriod", () => {
+  it("izinli dönemleri kabul eder, diğerlerini varsayılana çevirir", () => {
+    expect(parseReportPeriod("7")).toBe(7);
+    expect(parseReportPeriod("365")).toBe(365);
+    expect(parseReportPeriod("15")).toBe(30);
+    expect(parseReportPeriod(undefined)).toBe(30);
+    expect(parseReportPeriod("abc")).toBe(30);
   });
 });

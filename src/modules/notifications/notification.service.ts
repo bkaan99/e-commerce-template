@@ -22,6 +22,7 @@ import {
   renderEmailVerification,
   renderPasswordReset,
 } from "./templates/account-emails";
+import { renderReturnDecision } from "./templates/return-emails";
 import type { RenderedEmail } from "./templates/layout";
 
 export const JOB_SEND_EMAIL = "email.send";
@@ -84,6 +85,28 @@ export class NotificationService {
     if (!order) return;
 
     await this.enqueue(order.email, renderOrderShipped(order, this.context));
+  }
+
+  async onReturnDecided(info: {
+    email: string;
+    orderNumber: string;
+    approved: boolean;
+    amount: string | null;
+    note: string | null;
+  }): Promise<void> {
+    await this.enqueue(
+      info.email,
+      renderReturnDecision(
+        {
+          orderNumber: info.orderNumber,
+          approved: info.approved,
+          amount: info.amount,
+          currency: siteConfig.currency,
+          note: info.note,
+        },
+        this.context,
+      ),
+    );
   }
 
   async sendStockAvailable(

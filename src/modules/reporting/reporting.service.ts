@@ -159,3 +159,15 @@ export class ReportingService {
     };
   }
 }
+
+/** Panoda seçilebilen dönemler (gün). */
+export const REPORT_PERIODS = [7, 30, 90, 365] as const;
+export const DEFAULT_REPORT_PERIOD = 30;
+
+/** Sorgu dizgesinden gelen değeri izinli dönemlerden birine çevirir. */
+export function parseReportPeriod(value: string | undefined): number {
+  const parsed = Number(value);
+  return (REPORT_PERIODS as readonly number[]).includes(parsed)
+    ? parsed
+    : DEFAULT_REPORT_PERIOD;
+}

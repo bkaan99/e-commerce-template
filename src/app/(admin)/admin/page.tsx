@@ -7,6 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminPage } from "@/modules/admin/guard";
 import { reportingService } from "@/modules/reporting/container";
+import {
+  REPORT_PERIODS,
+  parseReportPeriod,
+} from "@/modules/reporting/reporting.service";
+import { cn } from "@/shared/cn";
 import { PERMISSIONS } from "@/shared/permissions";
 
 function Change({ value }: { value: number | null }) {
@@ -20,7 +25,9 @@ function Change({ value }: { value: number | null }) {
   );
 }
 
-async function DashboardContent() {
+async function DashboardContent({
+  searchParams,
+}: Pick<PageProps<"/admin">, "searchParams">) {
   const user = await adminPage();
   if (!user) return <AccessDenied />;
 
@@ -34,10 +41,29 @@ async function DashboardContent() {
     );
   }
 
-  const data = await reportingService.dashboard(30);
+  const params = await searchParams;
+  const period = parseReportPeriod(
+    typeof params["gun"] === "string" ? params["gun"] : undefined,
+  );
+  const data = await reportingService.dashboard(period);
 
   return (
     <div className="flex flex-col gap-6">
+      <nav aria-label="Dönem" className="flex flex-wrap gap-2 text-sm">
+        {REPORT_PERIODS.map((days) => (
+          <Link
+            key={days}
+            href={`/admin?gun=${days}`}
+            aria-current={days === period ? "page" : undefined}
+            className={cn(
+              "rounded-theme border border-border px-3 py-1",
+              days === period && "bg-primary text-primary-foreground",
+            )}
+          >
+            Son {days} gün
+          </Link>
+        ))}
+      </nav>
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
@@ -208,14 +234,19 @@ async function DashboardContent() {
   );
 }
 
-export default function AdminDashboardPage() {
+export default function AdminDashboardPage({
+  searchParams,
+}: PageProps<"/admin">) {
   return (
     <>
-      <PageHeader title="Pano" description="Son 30 günün özeti" />
+      <PageHeader
+        title="Pano"
+        description="Seçilen dönemin önceki dönemle karşılaştırmalı özeti"
+      />
       <Suspense
         fallback={<p className="text-muted-foreground">Yükleniyor...</p>}
       >
-        <DashboardContent />
+        <DashboardContent searchParams={searchParams} />
       </Suspense>
     </>
   );

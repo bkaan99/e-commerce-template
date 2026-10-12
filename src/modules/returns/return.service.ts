@@ -18,6 +18,17 @@ import type {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** İade sonucunu müşteriye bildirir; hata iade işlemini bozmaz. */
+export interface ReturnNotifier {
+  onReturnDecided(info: {
+    email: string;
+    orderNumber: string;
+    approved: boolean;
+    amount: string | null;
+    note: string | null;
+  }): Promise<void>;
+}
+
 export interface ReturnServiceDeps {
   returns: ReturnRepository;
   /** Müşterinin siparişe erişim hakkını doğrular (sahip veya bağlantı belirteci). */
@@ -26,6 +37,7 @@ export interface ReturnServiceDeps {
   };
   refunder: PaymentRefunder;
   audit: AuditLogger;
+  notifier?: ReturnNotifier;
   withdrawalPeriodDays: number;
   now?: () => Date;
 }
@@ -132,6 +144,8 @@ export class ReturnService {
         order: request.order.orderNumber,
       },
     });
+
+    await this.notify(request, true, amount, null);
   }
 
   async reject(
@@ -154,6 +168,28 @@ export class ReturnService {
       entityId: requestId,
       after: { adminNote, order: request.order.orderNumber },
     });
+
+    await this.notify(request, false, null, adminNote?.trim() || null);
+  }
+
+  private async notify(
+    request: ReturnRequestRecord,
+    approved: boolean,
+    amount: string | null,
+    note: string | null,
+  ): Promise<void> {
+    if (!this.deps.notifier || !request.order.email) return;
+    try {
+      await this.deps.notifier.onReturnDecided({
+        email: request.order.email,
+        orderNumber: request.order.orderNumber,
+        approved,
+        amount,
+        note,
+      });
+    } catch {
+      // İade zaten tamamlandı; bildirim hatası işlemi geri almamalı.
+    }
   }
 
   private async requireOrder(orderNumber: string): Promise<ReturnOrderRecord> {

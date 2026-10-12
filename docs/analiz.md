@@ -346,7 +346,7 @@ Uygulama sırasında alınan teknik kararlar:
 
 ## 17. v0.6 Uygulama Notları
 
-**Kapsama alınanlar:** pano müşteri metrikleri (yeni müşteri, alışveriş yapan üye, tekrar alışveriş oranı), KVKK ve hesap özellikleri (adres defteri, profil, parola değiştirme, veri dışa aktarma, hesap silme/anonimleştirme, tekrar sipariş ver), checkout'ta kayıtlı adres seçimi, yasal sayfa şablonları, CSV ile ürün içe aktarma ve SKU bazlı toplu fiyat/stok güncelleme, personel ve özel rol yönetimi, ürün görseli yükleme (storage adapter), kargo takip bağlantıları, ERP senkronizasyon altyapısı, SEO iyileştirmeleri, vitrin okuma önbelleği, Playwright uçtan uca testleri.
+**Kapsama alınanlar:** pano müşteri metrikleri (yeni müşteri, alışveriş yapan üye, tekrar alışveriş oranı) ve dönem seçimi (7/30/90/365 gün), iade onay/ret e-postası, KVKK ve hesap özellikleri (adres defteri, profil, parola değiştirme, veri dışa aktarma, hesap silme/anonimleştirme, tekrar sipariş ver), checkout'ta kayıtlı adres seçimi, yasal sayfa şablonları, CSV ile ürün içe aktarma ve SKU bazlı toplu fiyat/stok güncelleme, personel ve özel rol yönetimi, ürün görseli yükleme (storage adapter), kargo takip bağlantıları, ERP senkronizasyon altyapısı, SEO iyileştirmeleri, vitrin okuma önbelleği, Playwright uçtan uca testleri.
 
 **Teknik kararlar**
 

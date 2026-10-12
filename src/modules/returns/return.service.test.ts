@@ -155,12 +155,23 @@ describe("ReturnService", () => {
   let now: Date;
   let service: ReturnService;
 
+  let notified: {
+    email: string;
+    orderNumber: string;
+    approved: boolean;
+    amount: string | null;
+    note: string | null;
+  }[];
+  let notifierFails: boolean;
+
   beforeEach(() => {
     repo = new FakeRepo();
     refund = vi.fn(async (r: { merchantOid: string; amount: string }) => ({
       providerRef: r.merchantOid,
     }));
     audit = [];
+    notified = [];
+    notifierFails = false;
     now = new Date("2026-06-10T00:00:00Z");
     service = new ReturnService({
       returns: repo,
@@ -169,6 +180,12 @@ describe("ReturnService", () => {
       audit: {
         log: async (e) => void audit.push(e),
         purgeOlderThan: async () => 0,
+      },
+      notifier: {
+        onReturnDecided: async (info) => {
+          if (notifierFails) throw new Error("kuyruk kapalı");
+          notified.push(info);
+        },
       },
       withdrawalPeriodDays: 14,
       now: () => now,
@@ -283,5 +300,29 @@ describe("ReturnService", () => {
     repo.request = requestRecord();
     await service.reject("r1", "Kullanılmış ürün", actor);
     expect(audit[0]).toMatchObject({ action: "return.reject" });
+  });
+
+  it("onay ve ret sonucunu müşteriye bildirir", async () => {
+    repo.request = requestRecord();
+    await service.approve("r1", { restock: false }, actor);
+    expect(notified[0]).toMatchObject({ approved: true, note: null });
+    expect(notified[0]!.amount).not.toBeNull();
+
+    repo.request = requestRecord();
+    await service.reject("r1", " Kullanılmış ürün ", actor);
+    expect(notified[1]).toMatchObject({
+      approved: false,
+      amount: null,
+      note: "Kullanılmış ürün",
+    });
+  });
+
+  it("bildirim hatası iade işlemini bozmaz", async () => {
+    repo.request = requestRecord();
+    notifierFails = true;
+    await expect(
+      service.approve("r1", { restock: false }, actor),
+    ).resolves.toBeUndefined();
+    expect(repo.completed).toHaveLength(1);
   });
 });
