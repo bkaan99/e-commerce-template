@@ -1,6 +1,6 @@
 # E-Ticaret Şablonu: Analiz ve Mimari Plan
 
-> Durum: **v0.1 İskelet, v0.2 Vitrin, v0.3 Satış ve v0.4 Admin tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
+> Durum: **v0.1 İskelet, v0.2 Vitrin, v0.3 Satış, v0.4 Admin ve v0.5 B2B tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
 > Son güncelleme: 2026-10-11
 
 ## 1. Amaç
@@ -323,6 +323,27 @@ Uygulama sırasında alınan teknik kararlar:
 - İade durumu e-postası ve gelişmiş rapor filtreleri (tarih aralığı seçimi): **v0.6**.
 - Stok sayımı için ayrı bir "toplu stok güncelleme" ekranı yok; stok ürün formundan güncellenir.
 
-## 16. Çalışma Kuralı
+## 16. v0.5 Uygulama Notları
+
+**Kapsama alınanlar:** bayi başvurusu (VKN sağlama algoritmasıyla doğrulama) ve admin onayı/ret/sonlandırma, müşteri grupları, varyanta özel grup fiyatı, grup iskontosu, genel ve gruba özel adet kademeleri, `salesMode` davranışı (`retail`/`hybrid`/`b2b`), fiyat gizleme, bayiye özel minimum sipariş tutarı, havale/EFT ve vadeli ödeme, kredi limiti, manuel ödeme onayı ve tahsilat işaretleme, bayi e-postaları.
+
+**Teknik kararlar**
+
+- **`PriceResolver` toplu ve asenkron hale getirildi.** Tek çağrıda birden çok varyant çözülür (`resolveUnitPrices`); grup fiyatı, iskonto ve kademeler tek sorguyla okunur, listelemede N+1 olmaz. Katalog, sepet ve checkout aynı çözücüyü kullanır.
+- **Fiyat görünürlüğü sunucuda uygulanır:** `priceVisible` bayrağı DTO'ya yazılır ve gizliyken fiyat alanları `0.00` döner; ayrıca sepete ekleme Server Action'ı ve checkout aynı kuralı doğrular, JSON-LD'ye teklif yazılmaz. Arayüzü gizlemek tek başına yeterli sayılmadı.
+- **Vadeli kredi kontrolü transaction içinde ve bayi satırı kilitlenerek yapılır** (`SELECT … FOR UPDATE`). Aynı bayinin eşzamanlı siparişleri sıraya girer; testte 500 TL limite 3 eşzamanlı 300 TL siparişten yalnızca biri geçer.
+- **Vadeli siparişte stok rezerve edilmez, doğrudan düşer;** iptalde geri yüklenir ve kredi serbest kalır. Havale siparişinde stok `bankTransferHoldHours` süresince rezerve edilir, süre dolarsa mevcut temizleme işi siparişi iptal eder.
+- **Kart dışı ödemelerde iade sağlayıcıdan yapılmaz:** ödenmiş havale/vadeli siparişin iptalinde `PayTR` çağrılmaz, iade kaydı "manuel iade" olarak açılır.
+- **Havale onayı mevcut ödeme akışını yeniden kullanır** (`applyPaymentResult`): idempotent, tutar doğrulamalı, stok düşümü ve `order.paid` olayı aynıdır.
+- **Menüler B2B bayrağına bağlıdır:** özellik kapalıyken bayi ekranları görünmez ve sayfalar 404 döner.
+
+**Bilinen sınırlar**
+
+- Fiyata göre **sıralama ve fiyat aralığı filtresi liste fiyatı üzerinden** yapılır; bayiye özel fiyat farklıysa sıralama yaklaşık olabilir. Büyük kataloglarda bayi fiyatıyla sıralama için SQL tabanlı çözüm gerekir.
+- **Teklif isteme** ve **bayi onayında otomatik cari ekstre** kapsama alınmadı (tam cari sistemi kararı gereği ERP'ye bırakıldı).
+- Vadeli siparişte vade tarihi ve tahsilat yalnızca manuel yönetilir; vade yaklaşınca otomatik hatırlatma yoktur.
+- `init-project` banka hesaplarını sormaz; `project.json` elle düzenlenir.
+
+## 17. Çalışma Kuralı
 
 Kod yazımına, proje sahibi açıkça "başla" demeden geçilmez.

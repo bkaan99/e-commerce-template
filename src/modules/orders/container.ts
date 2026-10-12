@@ -9,6 +9,8 @@ import { getEventBus } from "@/shared/events";
 import { getJobQueue } from "@/shared/queue";
 import { getSiteUrl } from "@/shared/site-url";
 import { cartService } from "../cart/container";
+import { priceResolver } from "../catalog/container";
+import { PrismaDealerRepository } from "../b2b/dealer.repository";
 import { PrismaCheckoutRepository } from "../checkout/checkout.repository";
 import { CheckoutService } from "../checkout/checkout.service";
 import { ConfiguredShippingRateCalculator } from "../checkout/shipping";
@@ -65,6 +67,9 @@ export function getNotificationService(): NotificationService {
   const bus = getEventBus();
   const service = notifications;
   bus.subscribe("order.paid", ({ orderId }) => service.onOrderPaid(orderId));
+  bus.subscribe("order.placed", ({ orderId, method }) =>
+    service.onOrderPlaced(orderId, method),
+  );
   bus.subscribe("order.cancelled", ({ orderId, refunded }) =>
     service.onOrderCancelled(orderId, refunded),
   );
@@ -93,6 +98,7 @@ export function getOrderService(): OrderService {
 export function getCheckoutService(): CheckoutService {
   return new CheckoutService({
     carts: cartService,
+    priceResolver,
     checkout: new PrismaCheckoutRepository(getDb),
     orders: orderRepository,
     shipping: new ConfiguredShippingRateCalculator(),
@@ -101,6 +107,12 @@ export function getCheckoutService(): CheckoutService {
       reservationMinutes: siteConfig.inventory.reservationMinutes,
       shippingTaxRate: siteConfig.shipping.taxRate,
       paymentProvider: getPaymentProvider().name,
+      requireDealer: siteConfig.salesMode === "b2b",
+      bankTransferConfigured: siteConfig.b2b.bankAccounts.length > 0,
+      bankTransferHoldHours: siteConfig.b2b.bankTransferHoldHours,
+      deferredPaymentDays: siteConfig.b2b.deferredPaymentDays,
     },
+    dealers: features.b2b ? new PrismaDealerRepository(getDb) : undefined,
+    events: getEventBus(),
   });
 }

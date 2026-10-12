@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/storefront/json-ld";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { ProductView } from "@/components/product/product-view";
 import { isFeatureEnabled } from "@/config/features";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
 import { loadProduct } from "@/modules/catalog/loaders";
 import { TrackOnMount } from "@/shared/analytics/track-on-mount";
@@ -53,6 +54,7 @@ async function RelatedProducts({
     productId,
     categoryId,
     4,
+    await getRequestPricing(),
   );
   if (related.length === 0) return null;
 
@@ -109,8 +111,9 @@ async function ProductContent({
           brand: product.brand
             ? { "@type": "Brand", name: product.brand.name }
             : undefined,
-          offers:
-            product.variants.length > 1 && lowPrice !== highPrice
+          offers: !product.priceVisible
+            ? undefined
+            : product.variants.length > 1 && lowPrice !== highPrice
               ? {
                   "@type": "AggregateOffer",
                   priceCurrency: currency,

@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   cancelOrderByStaffAction,
+  confirmBankTransferAction,
+  markDeferredCollectedAction,
   markDeliveredAction,
   markProcessingAction,
   shipOrderAction,
@@ -25,6 +27,8 @@ export function OrderActions({
   canShip,
   canDeliver,
   canCancel,
+  canConfirmBankTransfer,
+  canCollectDeferred,
   paid,
 }: {
   orderNumber: string;
@@ -32,6 +36,8 @@ export function OrderActions({
   canShip: boolean;
   canDeliver: boolean;
   canCancel: boolean;
+  canConfirmBankTransfer: boolean;
+  canCollectDeferred: boolean;
   paid: boolean;
 }) {
   const [pending, startTransition] = useTransition();
@@ -62,6 +68,39 @@ export function OrderActions({
             onClick={() => run(() => markProcessingAction(orderNumber))}
           >
             Hazırlanıyor olarak işaretle
+          </Button>
+        ) : null}
+        {canConfirmBankTransfer ? (
+          <Button
+            disabled={pending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Havale/EFT hesaba geçti mi? Sipariş ödenmiş sayılacak.",
+                )
+              ) {
+                run(() => confirmBankTransferAction(orderNumber));
+              }
+            }}
+          >
+            Havale alındı
+          </Button>
+        ) : null}
+        {canCollectDeferred ? (
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Vadeli ödeme tahsil edildi olarak işaretlensin mi?",
+                )
+              ) {
+                run(() => markDeferredCollectedAction(orderNumber));
+              }
+            }}
+          >
+            Tahsil edildi
           </Button>
         ) : null}
         {canDeliver ? (

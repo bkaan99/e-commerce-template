@@ -8,6 +8,7 @@ import { formatMoney, toDecimal } from "@/shared/money";
 import { availableQuantity } from "../catalog/availability";
 import { RetailPriceResolver, type PriceResolver } from "../catalog/pricing";
 import type { CartIdentity, CartMutationResult } from "../cart/cart.types";
+import type { EventBus } from "@/shared/events/event-bus";
 import type { OrderRepository } from "../orders/order.repository";
 import type {
   AddressSnapshot,
@@ -40,6 +41,29 @@ export interface CheckoutSettings {
   reservationMinutes: number;
   shippingTaxRate: number;
   paymentProvider: string;
+  /** true ise yalnızca onaylı bayiler sipariş verebilir (salesMode: b2b) */
+  requireDealer?: boolean;
+  /** Havale/EFT seçeneği için hesap tanımlı mı? */
+  bankTransferConfigured?: boolean;
+  bankTransferHoldHours?: number;
+  deferredPaymentDays?: number;
+}
+
+/** Checkout'un bayi bilgisinden yalnızca ihtiyaç duyduğu parça. */
+export interface DealerTerms {
+  findProfile(userId: string): Promise<{
+    status: string;
+    creditLimit: string | null;
+    minOrderAmount: string | null;
+  } | null>;
+  outstandingDeferredTotal(userId: string): Promise<Decimal>;
+}
+
+export interface PaymentOption {
+  method: "CARD" | "BANK_TRANSFER" | "DEFERRED";
+  available: boolean;
+  /** Seçilemiyorsa nedeni; seçilebiliyorsa ek bilgi (örn. kalan kredi) */
+  note: string | null;
 }
 
 export interface CheckoutQuote {
@@ -73,6 +97,8 @@ export interface CheckoutDeps {
   shipping: ShippingRateCalculator;
   settings: CheckoutSettings;
   priceResolver?: PriceResolver;
+  dealers?: DealerTerms;
+  events?: EventBus;
   now?: () => Date;
 }
 
@@ -92,7 +118,15 @@ export class CheckoutService {
     owner: { userId: string | null; email: string | null },
   ): Promise<CheckoutQuote> {
     const { cartId, lines } = await this.loadSellableLines(identity);
-    return (await this.compute(cartId, lines, couponCode, owner)).quote;
+    return (
+      await this.compute(
+        cartId,
+        lines,
+        couponCode,
+        owner,
+        identity.customerGroupId ?? null,
+      )
+    ).quote;
   }
 
   async placeOrder(
@@ -103,11 +137,41 @@ export class CheckoutService {
       throw new ForbiddenError("Sipariş vermek için giriş yapmalısınız");
     }
 
+    const dealer = await this.loadDealer(identity.userId);
+    if (this.deps.settings.requireDealer && dealer?.status !== "APPROVED") {
+      throw new ForbiddenError(
+        "Bu mağazada yalnızca onaylı bayiler sipariş verebilir",
+      );
+    }
+
     const { cartId, lines } = await this.loadSellableLines(identity);
-    const computed = await this.compute(cartId, lines, input.couponCode, {
-      userId: identity.userId,
-      email: input.email,
-    });
+    const computed = await this.compute(
+      cartId,
+      lines,
+      input.couponCode,
+      { userId: identity.userId, email: input.email },
+      identity.customerGroupId ?? null,
+    );
+
+    const payable = toDecimal(computed.quote.subtotal).minus(
+      computed.quote.discountTotal,
+    );
+    if (
+      dealer?.status === "APPROVED" &&
+      dealer.minOrderAmount &&
+      payable.lt(dealer.minOrderAmount)
+    ) {
+      throw new ValidationError(
+        `Minimum sipariş tutarınız ${formatMoney(dealer.minOrderAmount)}`,
+      );
+    }
+
+    await this.assertPaymentMethod(
+      input.paymentMethod,
+      dealer,
+      identity.userId,
+      computed.quote.grandTotal,
+    );
 
     const items: NewOrderItem[] = computed.priced.map((entry, index) => ({
       variantId: entry.record.variantId,
@@ -127,7 +191,10 @@ export class CheckoutService {
     const billing: AddressSnapshot =
       input.billingAddress ?? input.shippingAddress;
 
-    const created = await this.deps.orders.createPendingOrder({
+    const method = input.paymentMethod;
+    const settings = this.deps.settings;
+
+    const newOrder = {
       userId: identity.userId,
       email: input.email,
       cartId,
@@ -142,12 +209,120 @@ export class CheckoutService {
       billingAddress: billing,
       customerNote: input.customerNote,
       items,
-      reservationMinutes: this.deps.settings.reservationMinutes,
-      paymentProvider: this.deps.settings.paymentProvider,
-      paymentMethod: "CARD",
-    });
+      reservationMinutes:
+        method === "BANK_TRANSFER"
+          ? (settings.bankTransferHoldHours ?? 72) * 60
+          : settings.reservationMinutes,
+      paymentProvider:
+        method === "CARD" ? settings.paymentProvider : method.toLowerCase(),
+      paymentMethod: method,
+    };
+
+    let created: CreatedOrder;
+    if (method === "DEFERRED") {
+      const days = settings.deferredPaymentDays ?? 30;
+      created = await this.deps.orders.createDeferredOrder(newOrder, {
+        creditLimit: dealer!.creditLimit!,
+        dueAt: new Date(this.now().getTime() + days * 24 * 60 * 60 * 1000),
+      });
+    } else {
+      created = await this.deps.orders.createPendingOrder(newOrder);
+    }
+
+    if (method !== "CARD") {
+      await this.deps.events?.publish("order.placed", {
+        orderId: created.orderId,
+        method,
+      });
+    }
 
     return { ...created, grandTotal: computed.quote.grandTotal };
+  }
+
+  /** Müşterinin bu sepet için seçebileceği ödeme yöntemleri. */
+  async paymentOptions(
+    identity: CartIdentity,
+    grandTotal: string,
+  ): Promise<PaymentOption[]> {
+    const dealer = await this.loadDealer(identity.userId);
+    const options: PaymentOption[] = [
+      { method: "CARD", available: true, note: null },
+    ];
+
+    if (dealer?.status !== "APPROVED") return options;
+
+    options.push({
+      method: "BANK_TRANSFER",
+      available: this.deps.settings.bankTransferConfigured === true,
+      note: this.deps.settings.bankTransferConfigured
+        ? null
+        : "Havale/EFT hesabı tanımlı değil",
+    });
+
+    const limit = dealer.creditLimit ? toDecimal(dealer.creditLimit) : null;
+    if (!limit || limit.lte(0)) {
+      options.push({
+        method: "DEFERRED",
+        available: false,
+        note: "Vadeli ödeme için kredi limitiniz tanımlı değil",
+      });
+    } else {
+      const outstanding = await this.deps.dealers!.outstandingDeferredTotal(
+        identity.userId!,
+      );
+      const remaining = limit.minus(outstanding);
+      const enough = remaining.gte(grandTotal);
+      options.push({
+        method: "DEFERRED",
+        available: enough,
+        note: enough
+          ? `Kullanılabilir limit: ${formatMoney(remaining)}`
+          : `Kredi limitiniz yetersiz (kullanılabilir: ${formatMoney(remaining.lt(0) ? 0 : remaining)})`,
+      });
+    }
+
+    return options;
+  }
+
+  private async loadDealer(userId: string | null) {
+    if (!userId || !this.deps.dealers) return null;
+    return this.deps.dealers.findProfile(userId);
+  }
+
+  private async assertPaymentMethod(
+    method: PaymentOption["method"],
+    dealer: Awaited<ReturnType<CheckoutService["loadDealer"]>>,
+    userId: string | null,
+    grandTotal: string,
+  ): Promise<void> {
+    if (method === "CARD") return;
+
+    if (dealer?.status !== "APPROVED") {
+      throw new ForbiddenError(
+        "Bu ödeme yöntemi yalnızca onaylı bayiler içindir",
+      );
+    }
+
+    if (method === "BANK_TRANSFER") {
+      if (!this.deps.settings.bankTransferConfigured) {
+        throw new ValidationError("Havale/EFT şu anda kullanılamıyor");
+      }
+      return;
+    }
+
+    const limit = dealer.creditLimit ? toDecimal(dealer.creditLimit) : null;
+    if (!limit || limit.lte(0)) {
+      throw new ValidationError(
+        "Vadeli ödeme için kredi limitiniz tanımlı değil",
+      );
+    }
+
+    const outstanding = await this.deps.dealers!.outstandingDeferredTotal(
+      userId!,
+    );
+    if (outstanding.plus(grandTotal).gt(limit)) {
+      throw new ConflictError("Kredi limitiniz yetersiz");
+    }
   }
 
   private async loadSellableLines(identity: CartIdentity): Promise<{
@@ -187,13 +362,19 @@ export class CheckoutService {
     lines: CheckoutLineRecord[],
     couponCode: string | null,
     owner: { userId: string | null; email: string | null },
+    customerGroupId: string | null,
   ) {
+    const unitPrices = await this.priceResolver.resolveUnitPrices(
+      lines.map((record) => ({
+        variantId: record.variantId,
+        listPrice: record.price,
+        quantity: record.quantity,
+      })),
+      { customerGroupId },
+    );
     const priced: PricedLine[] = lines.map((record) => ({
       record,
-      unitPrice: this.priceResolver.resolveUnitPrice(
-        { id: record.variantId, price: record.price },
-        { customerGroupId: null, quantity: record.quantity },
-      ),
+      unitPrice: unitPrices.get(record.variantId) ?? toDecimal(record.price),
     }));
 
     const subtotal = priced.reduce(

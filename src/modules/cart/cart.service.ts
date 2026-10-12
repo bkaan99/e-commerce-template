@@ -56,7 +56,10 @@ export class CartService {
   async getCart(identity: CartIdentity): Promise<CartMutationResult> {
     const resolved = await this.resolveExisting(identity);
     return {
-      cart: await this.buildView(resolved.cart),
+      cart: await this.buildView(
+        resolved.cart,
+        identity.customerGroupId ?? null,
+      ),
       clearSessionToken: resolved.clearSessionToken,
     };
   }
@@ -77,7 +80,7 @@ export class CartService {
     await this.repository.setItemQuantity(cart.id, variantId, next);
 
     return {
-      cart: await this.buildView(cart),
+      cart: await this.buildView(cart, identity.customerGroupId ?? null),
       sessionToken,
       clearSessionToken,
     };
@@ -105,7 +108,10 @@ export class CartService {
     }
 
     return {
-      cart: await this.buildView(resolved.cart),
+      cart: await this.buildView(
+        resolved.cart,
+        identity.customerGroupId ?? null,
+      ),
       clearSessionToken: resolved.clearSessionToken,
     };
   }
@@ -211,7 +217,10 @@ export class CartService {
     return { cart, sessionToken: token };
   }
 
-  private async buildView(cart: CartRecord | null): Promise<CartView> {
+  private async buildView(
+    cart: CartRecord | null,
+    customerGroupId: string | null,
+  ): Promise<CartView> {
     if (!cart) {
       return {
         id: null,
@@ -228,12 +237,18 @@ export class CartService {
     let itemCount = 0;
     let hasIssues = false;
 
+    const unitPrices = await this.priceResolver.resolveUnitPrices(
+      items.map((item) => ({
+        variantId: item.variantId,
+        listPrice: item.price,
+        quantity: item.quantity,
+      })),
+      { customerGroupId },
+    );
+
     const lines: CartLine[] = items.map((item) => {
       const { issue, available } = evaluateLine(item);
-      const unit = this.priceResolver.resolveUnitPrice(
-        { id: item.variantId, price: item.price },
-        { customerGroupId: null, quantity: item.quantity },
-      );
+      const unit = unitPrices.get(item.variantId) ?? toDecimal(item.price);
       const lineTotal = unit.times(item.quantity);
 
       itemCount += item.quantity;

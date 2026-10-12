@@ -17,4 +17,22 @@ describe("visibleNav", () => {
     expect(hrefs).toContain("/admin/urunler");
     expect(hrefs).not.toContain("/admin/denetim");
   });
+
+  it("B2B menüleri yalnızca özellik açıkken ve yetki varsa görünür", () => {
+    const permissions = [PERMISSIONS.B2B_APPROVE, PERMISSIONS.PROMOTION_MANAGE];
+
+    expect(visibleNav(permissions).map((item) => item.href)).not.toContain(
+      "/admin/bayiler",
+    );
+
+    const hrefs = visibleNav(permissions, { b2bEnabled: true }).map(
+      (item) => item.href,
+    );
+    expect(hrefs).toContain("/admin/bayiler");
+    expect(hrefs).toContain("/admin/bayi-gruplari");
+
+    expect(
+      visibleNav([], { b2bEnabled: true }).map((item) => item.href),
+    ).not.toContain("/admin/bayiler");
+  });
 });

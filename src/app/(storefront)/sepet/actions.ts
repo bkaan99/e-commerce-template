@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { cartService } from "@/modules/cart/container";
 import {
   getCartIdentity,
@@ -37,6 +38,12 @@ export async function addToCartAction(
   variantId: string,
   quantity: number,
 ): Promise<CartActionResult> {
+  // Yalnızca-B2B modunda fiyat göremeyen ziyaretçi sepete ekleyemez.
+  const pricing = await getRequestPricing();
+  if (!pricing.pricesVisible) {
+    return { ok: false, error: "Sipariş için bayi girişi yapmalısınız." };
+  }
+
   return run((identity) => cartService.addItem(identity, variantId, quantity));
 }
 

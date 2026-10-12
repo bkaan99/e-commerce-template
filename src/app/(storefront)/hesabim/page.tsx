@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Price } from "@/components/storefront/price";
+import { features } from "@/config/features";
+import { getDealerService } from "@/modules/b2b/container";
 import { requireUser } from "@/modules/auth/session";
 import { getOrderService } from "@/modules/orders/container";
 import { ORDER_STATUS_LABELS } from "@/modules/orders/order-labels";
@@ -14,6 +16,9 @@ export const metadata: Metadata = {
 async function AccountContent() {
   const user = await requireUser();
   const orders = await getOrderService().listForUser(user.id);
+  const dealer = features.b2b
+    ? await getDealerService().getProfile(user.id)
+    : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -22,6 +27,26 @@ async function AccountContent() {
         <p>{user.name}</p>
         <p className="text-muted-foreground">{user.email}</p>
       </section>
+
+      {features.b2b ? (
+        <section className="flex flex-col gap-1 text-sm">
+          <h2 className="text-lg font-semibold">Bayilik</h2>
+          {dealer?.status === "APPROVED" ? (
+            <p>
+              Onaylı bayi{dealer.groupName ? ` · ${dealer.groupName}` : ""}
+              {dealer.creditLimit
+                ? ` · Kredi limiti: ${dealer.creditLimit} TL`
+                : ""}
+            </p>
+          ) : dealer?.status === "PENDING" ? (
+            <p className="text-muted-foreground">Başvurunuz inceleniyor.</p>
+          ) : (
+            <Link href="/bayi-basvuru" className="underline">
+              Bayi başvurusu yap
+            </Link>
+          )}
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Siparişlerim</h2>

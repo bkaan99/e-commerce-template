@@ -14,6 +14,7 @@ import {
   CheckoutService,
   type CartSource,
   type CheckoutSettings,
+  type DealerTerms,
 } from "./checkout.service";
 import { ConfiguredShippingRateCalculator } from "./shipping";
 
@@ -41,6 +42,7 @@ const input = (overrides: Partial<CheckoutInput> = {}): CheckoutInput => ({
   billingAddress: undefined,
   couponCode: null,
   customerNote: null,
+  paymentMethod: "CARD",
   acceptTerms: true,
   ...overrides,
 });
@@ -101,6 +103,7 @@ class FakeCheckoutRepo implements CheckoutRepository {
 
 class FakeOrders implements OrderRepository {
   created: NewOrder[] = [];
+  deferred: NewOrder[] = [];
   couponUses = 0;
   async createPendingOrder(order: NewOrder) {
     this.created.push(order);
@@ -113,6 +116,19 @@ class FakeOrders implements OrderRepository {
   }
   async countCouponUses() {
     return this.couponUses;
+  }
+  async createDeferredOrder(order: NewOrder) {
+    this.created.push(order);
+    this.deferred.push(order);
+    return {
+      orderId: "o2",
+      orderNumber: "SDEF",
+      lookupToken: "tok2",
+      merchantOid: "SDEF",
+    };
+  }
+  async markDeferredPaid() {
+    return true;
   }
   async findById() {
     return null;
@@ -351,5 +367,176 @@ describe("CheckoutService", () => {
       email: null,
     });
     expect(quote.discountTotal).toBe("0.00");
+  });
+});
+
+describe("CheckoutService: B2B kuralları", () => {
+  const events: { name: string; payload: unknown }[] = [];
+  const bus = {
+    publish: async (name: string, payload: unknown) =>
+      void events.push({ name, payload }),
+    subscribe: () => {},
+  };
+
+  const dealers = (
+    profile: Awaited<ReturnType<DealerTerms["findProfile"]>>,
+    outstanding = "0",
+  ): DealerTerms => ({
+    findProfile: async () => profile,
+    outstandingDeferredTotal: async () => new Decimal(outstanding),
+  });
+
+  const approved = {
+    status: "APPROVED",
+    creditLimit: "1000.00",
+    minOrderAmount: null,
+  };
+
+  function build(
+    overrides: Partial<CheckoutSettings> = {},
+    terms?: DealerTerms,
+  ) {
+    const repo = new FakeCheckoutRepo();
+    const orders = new FakeOrders();
+    const service = new CheckoutService({
+      carts: carts("c1"),
+      checkout: repo,
+      orders,
+      shipping,
+      settings: {
+        ...settings,
+        bankTransferConfigured: true,
+        deferredPaymentDays: 30,
+        ...overrides,
+      },
+      dealers: terms,
+      events: bus as never,
+      now: () => new Date("2026-06-01T12:00:00Z"),
+    });
+    return { service, orders };
+  }
+
+  const dealerIdentity: CartIdentity = { userId: "u1", sessionToken: null };
+
+  beforeEach(() => {
+    events.length = 0;
+  });
+
+  it("yalnızca-B2B modunda bayi olmayanı reddeder", async () => {
+    const { service } = build({ requireDealer: true }, dealers(null));
+    await expect(service.placeOrder(dealerIdentity, input())).rejects.toThrow(
+      "yalnızca onaylı bayiler",
+    );
+  });
+
+  it("onaylı bayi yalnızca-B2B modunda sipariş verebilir", async () => {
+    const { service, orders } = build(
+      { requireDealer: true },
+      dealers(approved),
+    );
+    await service.placeOrder(dealerIdentity, input());
+    expect(orders.created).toHaveLength(1);
+  });
+
+  it("minimum sipariş tutarının altını reddeder", async () => {
+    const { service } = build(
+      {},
+      dealers({ ...approved, minOrderAmount: "5000.00" }),
+    );
+    await expect(service.placeOrder(dealerIdentity, input())).rejects.toThrow(
+      "Minimum sipariş tutarınız",
+    );
+  });
+
+  it("bayi olmayan müşteri havale veya vadeli ödeme seçemez", async () => {
+    const { service } = build({}, dealers(null));
+    for (const paymentMethod of ["BANK_TRANSFER", "DEFERRED"] as const) {
+      await expect(
+        service.placeOrder(dealerIdentity, input({ paymentMethod })),
+      ).rejects.toThrow("yalnızca onaylı bayiler içindir");
+    }
+  });
+
+  it("havale/EFT siparişinde uzun rezervasyon süresi uygular ve olay yayınlar", async () => {
+    const { service, orders } = build(
+      { bankTransferHoldHours: 48 },
+      dealers(approved),
+    );
+
+    await service.placeOrder(
+      dealerIdentity,
+      input({ paymentMethod: "BANK_TRANSFER" }),
+    );
+
+    expect(orders.created[0]).toMatchObject({
+      paymentMethod: "BANK_TRANSFER",
+      reservationMinutes: 48 * 60,
+      paymentProvider: "bank_transfer",
+    });
+    expect(events).toEqual([
+      {
+        name: "order.placed",
+        payload: { orderId: "o1", method: "BANK_TRANSFER" },
+      },
+    ]);
+  });
+
+  it("havale hesabı tanımlı değilse havaleyi reddeder", async () => {
+    const { service } = build(
+      { bankTransferConfigured: false },
+      dealers(approved),
+    );
+    await expect(
+      service.placeOrder(
+        dealerIdentity,
+        input({ paymentMethod: "BANK_TRANSFER" }),
+      ),
+    ).rejects.toThrow("Havale/EFT");
+  });
+
+  it("vadeli ödemede kredi limiti içindeyse vade tarihiyle sipariş oluşturur", async () => {
+    const { service, orders } = build({}, dealers(approved, "100"));
+
+    await service.placeOrder(
+      dealerIdentity,
+      input({ paymentMethod: "DEFERRED" }),
+    );
+
+    expect(orders.deferred).toHaveLength(1);
+    expect(orders.created[0]!.paymentMethod).toBe("DEFERRED");
+    expect(events[0]).toMatchObject({ name: "order.placed" });
+  });
+
+  it("kredi limitini aşan vadeli siparişi reddeder", async () => {
+    const { service, orders } = build({}, dealers(approved, "900"));
+    await expect(
+      service.placeOrder(dealerIdentity, input({ paymentMethod: "DEFERRED" })),
+    ).rejects.toThrow("Kredi limitiniz yetersiz");
+    expect(orders.created).toHaveLength(0);
+  });
+
+  it("kredi limiti tanımsızsa vadeli ödemeyi reddeder", async () => {
+    const { service } = build({}, dealers({ ...approved, creditLimit: null }));
+    await expect(
+      service.placeOrder(dealerIdentity, input({ paymentMethod: "DEFERRED" })),
+    ).rejects.toThrow("kredi limitiniz tanımlı değil");
+  });
+
+  it("ödeme seçeneklerini ve kalan krediyi listeler", async () => {
+    const { service } = build({}, dealers(approved, "400"));
+    const options = await service.paymentOptions(dealerIdentity, "250.00");
+
+    expect(options.map((o) => [o.method, o.available])).toEqual([
+      ["CARD", true],
+      ["BANK_TRANSFER", true],
+      ["DEFERRED", true],
+    ]);
+    expect(options[2]!.note).toContain("Kullanılabilir limit");
+  });
+
+  it("bayi olmayan müşteriye yalnızca kartı sunar", async () => {
+    const { service } = build({}, dealers(null));
+    const options = await service.paymentOptions(dealerIdentity, "250.00");
+    expect(options.map((o) => o.method)).toEqual(["CARD"]);
   });
 });

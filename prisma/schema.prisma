@@ -179,6 +179,8 @@ model Customer {
   creditLimit    Decimal?  @db.Decimal(12, 2)
   minOrderAmount Decimal?  @db.Decimal(12, 2)
   approvedAt     DateTime?
+  /// Başvuru değerlendirme notu (ret nedeni vb.)
+  b2bNote        String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -622,6 +624,8 @@ model Payment {
   providerRef String?
   rawPayload  Json?
   paidAt      DateTime?
+  /// Vadeli ödemede vade tarihi
+  dueAt       DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 

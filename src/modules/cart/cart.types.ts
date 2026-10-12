@@ -4,6 +4,8 @@ export const MAX_LINE_QUANTITY = 99;
 export interface CartIdentity {
   userId: string | null;
   sessionToken: string | null;
+  /** Onaylı bayiyse grubu; fiyatlar bu gruba göre çözülür. */
+  customerGroupId?: string | null;
 }
 
 export type CartLineIssue = "OUT_OF_STOCK" | "QUANTITY_REDUCED" | "UNAVAILABLE";

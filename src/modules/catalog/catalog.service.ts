@@ -31,6 +31,8 @@ export const PLACEHOLDER_IMAGE = "/placeholder.svg";
 
 export interface PricingIdentity {
   customerGroupId: string | null;
+  /** false ise fiyatlar gizlenir (yalnızca-B2B modunda girişsiz ziyaretçi). */
+  pricesVisible?: boolean;
 }
 
 const ANONYMOUS: PricingIdentity = { customerGroupId: null };
@@ -160,11 +162,15 @@ export class CatalogService {
   ): Promise<ProductCard[]> {
     const records = await this.repository.findCards(ids);
     const byId = new Map(records.map((record) => [record.id, record]));
-
-    return ids
+    const ordered = ids
       .map((id) => byId.get(id))
-      .filter((record): record is ProductCardRecord => record !== undefined)
-      .map((record) => this.toCard(record, identity));
+      .filter((record): record is ProductCardRecord => record !== undefined);
+
+    const prices = await this.resolvePrices(
+      ordered.flatMap((record) => record.variants),
+      identity,
+    );
+    return ordered.map((record) => this.toCard(record, prices, identity));
   }
 
   async getProductBySlug(
@@ -174,8 +180,11 @@ export class CatalogService {
     const record = await this.repository.findDetailBySlug(slug);
     if (!record) throw new NotFoundError("Ürün");
 
-    const categories = await this.repository.listCategories();
-    return this.toDetail(record, categories, identity);
+    const [categories, prices] = await Promise.all([
+      this.repository.listCategories(),
+      this.resolvePrices(record.variants, identity),
+    ]);
+    return this.toDetail(record, categories, prices, identity);
   }
 
   /** Elle seçilen ürünler öncelikli; eksik kalanı aynı kategoriden tamamlanır. */
@@ -250,24 +259,33 @@ export class CatalogService {
       }));
   }
 
-  private unitPrice(
-    variant: VariantRecord,
+  /** Tüm varyantların birim fiyatı (adet 1) tek çağrıyla çözülür. */
+  private resolvePrices(
+    variants: readonly VariantRecord[],
     identity: PricingIdentity,
-  ): Decimal {
-    return this.priceResolver.resolveUnitPrice(variant, {
-      customerGroupId: identity.customerGroupId,
-      quantity: 1,
-    });
+  ): Promise<Map<string, Decimal>> {
+    return this.priceResolver.resolveUnitPrices(
+      variants.map((variant) => ({
+        variantId: variant.id,
+        listPrice: variant.price,
+        quantity: 1,
+      })),
+      { customerGroupId: identity.customerGroupId },
+    );
   }
 
   private toCard(
     record: ProductCardRecord,
+    priceMap: Map<string, Decimal>,
     identity: PricingIdentity,
   ): ProductCard {
-    const prices = record.variants.map((v) => this.unitPrice(v, identity));
+    const prices = record.variants.map(
+      (v) => priceMap.get(v.id) ?? toDecimal(v.price),
+    );
     const min = prices.reduce((a, b) => (b.lt(a) ? b : a));
     const max = prices.reduce((a, b) => (b.gt(a) ? b : a));
     const cheapest = record.variants[prices.findIndex((p) => p.eq(min))]!;
+    const priceVisible = identity.pricesVisible !== false;
 
     return {
       id: record.id,
@@ -276,11 +294,13 @@ export class CatalogService {
       brandName: record.brandName,
       imageUrl: record.imageUrl ?? PLACEHOLDER_IMAGE,
       imageAlt: record.imageAlt ?? record.name,
-      price: min.toFixed(2),
-      compareAtPrice: cheapest.compareAtPrice?.gt(min)
-        ? cheapest.compareAtPrice.toFixed(2)
-        : null,
-      hasPriceRange: !min.eq(max),
+      priceVisible,
+      price: priceVisible ? min.toFixed(2) : "0.00",
+      compareAtPrice:
+        priceVisible && cheapest.compareAtPrice?.gt(min)
+          ? cheapest.compareAtPrice.toFixed(2)
+          : null,
+      hasPriceRange: priceVisible && !min.eq(max),
       currency: cheapest.currency,
       inStock: record.variants.some((variant) =>
         isInStock({
@@ -295,23 +315,26 @@ export class CatalogService {
   private toDetail(
     record: ProductDetailRecord,
     categories: readonly CategoryNode[],
+    priceMap: Map<string, Decimal>,
     identity: PricingIdentity,
   ): ProductDetail {
+    const priceVisible = identity.pricesVisible !== false;
     const variants: VariantView[] = record.variants.map((variant) => {
       const stock = {
         trackInventory: record.trackInventory,
         stockQuantity: variant.stockQuantity,
         reservedQuantity: variant.reservedQuantity,
       };
-      const price = this.unitPrice(variant, identity);
+      const price = priceMap.get(variant.id) ?? toDecimal(variant.price);
 
       return {
         id: variant.id,
         sku: variant.sku,
-        price: price.toFixed(2),
-        compareAtPrice: variant.compareAtPrice?.gt(price)
-          ? toDecimal(variant.compareAtPrice).toFixed(2)
-          : null,
+        price: priceVisible ? price.toFixed(2) : "0.00",
+        compareAtPrice:
+          priceVisible && variant.compareAtPrice?.gt(price)
+            ? toDecimal(variant.compareAtPrice).toFixed(2)
+            : null,
         currency: variant.currency,
         inStock: isInStock(stock),
         availableQuantity: availableQuantity(stock),
@@ -331,6 +354,7 @@ export class CatalogService {
       slug: record.slug,
       name: record.name,
       description: record.description,
+      priceVisible,
       categoryId: record.categoryId,
       brand: record.brand,
       breadcrumbs: buildBreadcrumbs(categories, record.categoryId),

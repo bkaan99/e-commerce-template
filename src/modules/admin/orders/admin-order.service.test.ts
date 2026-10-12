@@ -6,7 +6,7 @@ import type {
   AdminOrderRepository,
 } from "./admin-order.repository";
 import { AdminOrderService } from "./admin-order.service";
-import type { OrderStatus } from "../../orders/order.types";
+import type { OrderStatus, PaymentOutcome } from "../../orders/order.types";
 
 const detail = (status: OrderStatus): AdminOrderDetail => ({
   id: "o1",
@@ -65,6 +65,9 @@ describe("AdminOrderService", () => {
   let repo: FakeRepo;
   let audit: AuditEntry[];
   let events: InMemoryEventBus;
+  let paymentCalls: { applied: string[]; deferredPaid: string[] };
+  let paymentOutcome: PaymentOutcome = { kind: "paid", orderId: "o1" };
+  let deferredResult = true;
   let cancelByStaff: ReturnType<
     typeof vi.fn<(orderNumber: string) => Promise<void>>
   >;
@@ -80,11 +83,22 @@ describe("AdminOrderService", () => {
       log: async (entry) => void audit.push(entry),
       purgeOlderThan: async () => 0,
     };
+    paymentCalls = { applied: [], deferredPaid: [] };
     service = new AdminOrderService(
       repo,
       { cancelByStaff },
       events,
       auditLogger,
+      {
+        applyPaymentResult: async (input) => {
+          paymentCalls.applied.push(input.merchantOid);
+          return paymentOutcome;
+        },
+        markDeferredPaid: async (orderId) => {
+          paymentCalls.deferredPaid.push(orderId);
+          return deferredResult;
+        },
+      },
     );
   });
 
@@ -158,5 +172,89 @@ describe("AdminOrderService", () => {
   it("bilinmeyen siparişte NotFoundError verir", async () => {
     repo.current = null;
     await expect(service.get("YOK")).rejects.toThrow("Sipariş bulunamadı");
+  });
+
+  describe("manuel ödeme onayı", () => {
+    const withPayment = (
+      status: OrderStatus,
+      method: "CARD" | "BANK_TRANSFER" | "DEFERRED",
+    ): AdminOrderDetail => ({
+      ...detail(status),
+      paymentStatus: "PENDING",
+      payments: [
+        {
+          provider: method.toLowerCase(),
+          method,
+          status: "PENDING",
+          amount: "100.00",
+          merchantOid: "SABC",
+          paidAt: null,
+          dueAt: null,
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      paymentOutcome = { kind: "paid", orderId: "o1" };
+      deferredResult = true;
+    });
+
+    it("havale alındığında ödemeyi uygular, olay yayınlar ve denetim yazar", async () => {
+      repo.current = withPayment("PENDING_PAYMENT", "BANK_TRANSFER");
+      const handler = vi.fn();
+      events.subscribe("order.paid", handler);
+
+      await service.confirmBankTransfer("SABC", actor);
+
+      expect(paymentCalls.applied).toEqual(["SABC"]);
+      expect(handler).toHaveBeenCalledWith({ orderId: "o1" });
+      expect(audit[0]).toMatchObject({ action: "order.bank-transfer.confirm" });
+    });
+
+    it("kart ödemeli veya ödenmiş siparişte havale onayını reddeder", async () => {
+      repo.current = withPayment("PENDING_PAYMENT", "CARD");
+      await expect(service.confirmBankTransfer("SABC", actor)).rejects.toThrow(
+        "havale onayı yapılamaz",
+      );
+
+      repo.current = withPayment("PAID", "BANK_TRANSFER");
+      await expect(service.confirmBankTransfer("SABC", actor)).rejects.toThrow(
+        "havale onayı yapılamaz",
+      );
+      expect(paymentCalls.applied).toHaveLength(0);
+    });
+
+    it("süresi dolmuş (işlenemeyen) siparişte hata verir ve olay yayınlamaz", async () => {
+      repo.current = withPayment("PENDING_PAYMENT", "BANK_TRANSFER");
+      paymentOutcome = { kind: "already-processed", orderId: "o1" };
+      const handler = vi.fn();
+      events.subscribe("order.paid", handler);
+
+      await expect(service.confirmBankTransfer("SABC", actor)).rejects.toThrow(
+        "onaylanamadı",
+      );
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("vadeli siparişin tahsilini işaretler", async () => {
+      repo.current = withPayment("PROCESSING", "DEFERRED");
+      await service.markDeferredCollected("SABC", actor);
+
+      expect(paymentCalls.deferredPaid).toEqual(["o1"]);
+      expect(audit[0]).toMatchObject({ action: "order.deferred.collected" });
+    });
+
+    it("vadeli olmayan veya zaten tahsil edilmiş siparişte hata verir", async () => {
+      repo.current = withPayment("PROCESSING", "CARD");
+      await expect(
+        service.markDeferredCollected("SABC", actor),
+      ).rejects.toThrow("vadeli ödemeli değil");
+
+      repo.current = withPayment("PROCESSING", "DEFERRED");
+      deferredResult = false;
+      await expect(
+        service.markDeferredCollected("SABC", actor),
+      ).rejects.toThrow("zaten tahsil");
+    });
   });
 });

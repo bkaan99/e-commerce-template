@@ -52,6 +52,8 @@ const order: OrderView = {
   carrier: "Yurtiçi",
   createdAt: new Date(),
   userId: null,
+  paymentMethod: "CARD",
+  paymentDueAt: null,
 };
 
 function setup(found: OrderView | null = order) {

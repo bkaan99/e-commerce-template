@@ -257,7 +257,13 @@ describe("CatalogService.list", () => {
 
   it("fiyatı PriceResolver üzerinden çözer", async () => {
     const doubling: PriceResolver = {
-      resolveUnitPrice: (v) => new Decimal(String(v.price)).times(2),
+      resolveUnitPrices: async (requests) =>
+        new Map(
+          requests.map((r) => [
+            r.variantId,
+            new Decimal(String(r.listPrice)).times(2),
+          ]),
+        ),
     };
     const repo = new FakeRepository(
       [row("a", "10", 1)],

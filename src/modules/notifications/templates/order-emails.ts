@@ -162,3 +162,57 @@ export function renderStockAvailable(
     text: `${product.name} yeniden stokta: ${link}\n\nBildirimden çıkmak için: ${unsubscribeUrl}`,
   };
 }
+
+export interface BankAccountInfo {
+  bank: string;
+  accountName: string;
+  iban: string;
+}
+
+/** Havale/EFT veya vadeli ödemeyle verilen sipariş için bilgilendirme. */
+export function renderOrderPlacedManual(
+  order: OrderView,
+  method: "BANK_TRANSFER" | "DEFERRED",
+  bankAccounts: readonly BankAccountInfo[],
+  context: EmailContext,
+): RenderedEmail {
+  const link = orderLink(order, context);
+  const total = formatMoney(order.grandTotal, order.currency);
+
+  const accountsHtml = bankAccounts
+    .map(
+      (account) =>
+        `<li>${escapeHtml(account.bank)} · ${escapeHtml(account.accountName)}<br><strong>${escapeHtml(account.iban)}</strong></li>`,
+    )
+    .join("");
+  const accountsText = bankAccounts
+    .map(
+      (account) => `${account.bank} · ${account.accountName}: ${account.iban}`,
+    )
+    .join("\n");
+
+  const intro =
+    method === "BANK_TRANSFER"
+      ? `Siparişiniz alındı. Ödemeyi havale/EFT ile yapmanızı bekliyoruz; ödeme onaylanınca siparişiniz hazırlanacak. Açıklama alanına sipariş numarasını (${order.orderNumber}) yazın.`
+      : `Siparişiniz vadeli ödeme ile onaylandı ve hazırlanıyor.`;
+
+  return {
+    subject:
+      method === "BANK_TRANSFER"
+        ? `Siparişiniz alındı, ödeme bekleniyor: ${order.orderNumber}`
+        : `Siparişiniz onaylandı: ${order.orderNumber}`,
+    html: wrapInLayout({
+      siteName: context.siteName,
+      title:
+        method === "BANK_TRANSFER"
+          ? "Ödeme bekleniyor"
+          : "Siparişiniz onaylandı",
+      bodyHtml: `<p>${escapeHtml(intro)}</p>
+        <p><strong>Tutar:</strong> ${escapeHtml(total)}</p>
+        ${method === "BANK_TRANSFER" && bankAccounts.length > 0 ? `<ul>${accountsHtml}</ul>` : ""}
+        ${itemsTableHtml(order)}
+        <p><a href="${escapeHtml(link)}">Siparişimi görüntüle</a></p>`,
+    }),
+    text: `${intro}\n\nTutar: ${total}\n${method === "BANK_TRANSFER" ? `\n${accountsText}\n` : ""}\n${itemsText(order)}\n\n${link}`,
+  };
+}

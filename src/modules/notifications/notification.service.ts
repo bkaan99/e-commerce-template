@@ -3,6 +3,10 @@ import type { JobQueue } from "@/shared/queue";
 import type { OrderRepository } from "../orders/order.repository";
 import type { EmailMessage } from "@/integrations/notification/mailer";
 import {
+  renderOrderPlacedManual,
+  type BankAccountInfo,
+} from "./templates/order-emails";
+import {
   renderAdminNewOrder,
   renderOrderCancelled,
   renderOrderConfirmation,
@@ -10,6 +14,10 @@ import {
   renderStockAvailable,
   type EmailContext,
 } from "./templates/order-emails";
+import {
+  renderDealerApplicationForAdmin,
+  renderDealerDecision,
+} from "./templates/dealer-emails";
 import {
   renderEmailVerification,
   renderPasswordReset,
@@ -26,6 +34,8 @@ export class NotificationService {
     private readonly queue: JobQueue,
     private readonly context: EmailContext,
     private readonly adminEmail: string = siteConfig.contact.email,
+    private readonly bankAccounts: readonly BankAccountInfo[] = siteConfig.b2b
+      .bankAccounts,
   ) {}
 
   async onOrderPaid(orderId: string): Promise<void> {
@@ -35,6 +45,23 @@ export class NotificationService {
     await this.enqueue(
       order.email,
       renderOrderConfirmation(order, this.context),
+    );
+    await this.enqueue(
+      this.adminEmail,
+      renderAdminNewOrder(order, this.context),
+    );
+  }
+
+  async onOrderPlaced(
+    orderId: string,
+    method: "BANK_TRANSFER" | "DEFERRED",
+  ): Promise<void> {
+    const order = await this.orders.findById(orderId);
+    if (!order) return;
+
+    await this.enqueue(
+      order.email,
+      renderOrderPlacedManual(order, method, this.bankAccounts, this.context),
     );
     await this.enqueue(
       this.adminEmail,
@@ -81,6 +108,28 @@ export class NotificationService {
     await this.enqueue(
       email,
       renderPasswordReset(link, { siteName: this.context.siteName }),
+    );
+  }
+
+  async sendDealerApplicationToAdmin(application: {
+    companyName: string;
+    taxNumber: string;
+    email: string;
+  }): Promise<void> {
+    await this.enqueue(
+      this.adminEmail,
+      renderDealerApplicationForAdmin(application, this.context),
+    );
+  }
+
+  async sendDealerDecision(
+    email: string,
+    approved: boolean,
+    note: string | null,
+  ): Promise<void> {
+    await this.enqueue(
+      email,
+      renderDealerDecision(approved, note, this.context),
     );
   }
 

@@ -5,6 +5,8 @@ export interface AdminNavItem {
   label: string;
   /** Menüde görünmesi için gereken yetki; boşsa her personel görür */
   permission?: Permission;
+  /** Yalnızca B2B özelliği açıkken görünür */
+  requiresB2b?: boolean;
 }
 
 export const ADMIN_NAV: readonly AdminNavItem[] = [
@@ -45,6 +47,18 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     permission: PERMISSIONS.CUSTOMER_READ,
   },
   {
+    href: "/admin/bayiler",
+    label: "Bayiler",
+    permission: PERMISSIONS.B2B_APPROVE,
+    requiresB2b: true,
+  },
+  {
+    href: "/admin/bayi-gruplari",
+    label: "Bayi grupları ve fiyatlar",
+    permission: PERMISSIONS.PROMOTION_MANAGE,
+    requiresB2b: true,
+  },
+  {
     href: "/admin/icerik",
     label: "İçerik",
     permission: PERMISSIONS.CONTENT_MANAGE,
@@ -57,8 +71,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
 ];
 
 /** Kullanıcının yetkilerine göre görünen menü öğeleri. */
-export function visibleNav(permissions: readonly string[]): AdminNavItem[] {
+export function visibleNav(
+  permissions: readonly string[],
+  options: { b2bEnabled?: boolean } = {},
+): AdminNavItem[] {
   return ADMIN_NAV.filter(
-    (item) => !item.permission || permissions.includes(item.permission),
+    (item) =>
+      (!item.permission || permissions.includes(item.permission)) &&
+      (!item.requiresB2b || options.b2bEnabled === true),
   );
 }

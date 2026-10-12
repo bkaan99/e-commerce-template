@@ -114,6 +114,7 @@ export const checkoutSchema = z.object({
     .optional()
     .transform((value) => (value ? value.toUpperCase() : null)),
   customerNote: optionalTrimmed(500),
+  paymentMethod: z.enum(["CARD", "BANK_TRANSFER", "DEFERRED"]).default("CARD"),
   acceptTerms: z.literal(true, { error: "Sözleşmeleri onaylamalısınız" }),
 });
 

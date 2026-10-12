@@ -77,6 +77,12 @@ async function OrderDetail({
   const transitions = allowedTransitions(order.status);
   const canUpdate = hasPermission(user.permissions, PERMISSIONS.ORDER_UPDATE);
   const canCancel = hasPermission(user.permissions, PERMISSIONS.ORDER_CANCEL);
+  const payment = order.payments[0];
+  const METHOD_LABELS = {
+    CARD: "Kart",
+    BANK_TRANSFER: "Havale / EFT",
+    DEFERRED: "Vadeli",
+  } as const;
 
   return (
     <div className="flex flex-col gap-6">
@@ -103,6 +109,17 @@ async function OrderDetail({
               canShip={canUpdate && transitions.includes("SHIPPED")}
               canDeliver={canUpdate && transitions.includes("DELIVERED")}
               canCancel={canCancel && isStaffCancellable(order.status)}
+              canConfirmBankTransfer={
+                canUpdate &&
+                payment?.method === "BANK_TRANSFER" &&
+                order.status === "PENDING_PAYMENT"
+              }
+              canCollectDeferred={
+                canUpdate &&
+                payment?.method === "DEFERRED" &&
+                order.paymentStatus === "PENDING" &&
+                order.status !== "CANCELLED"
+              }
               paid={order.paymentStatus === "PAID"}
             />
           </CardContent>
@@ -196,12 +213,18 @@ async function OrderDetail({
           <CardContent className="flex flex-col gap-2 text-sm">
             {order.payments.map((payment) => (
               <p key={payment.merchantOid}>
-                {payment.provider} · {payment.status} ·{" "}
+                {METHOD_LABELS[payment.method]} · {payment.status} ·{" "}
                 <Price value={payment.amount} currency={order.currency} />
                 <span className="text-muted-foreground">
                   {" "}
                   ({payment.merchantOid})
                 </span>
+                {payment.dueAt ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · vade {payment.dueAt.toLocaleDateString("tr-TR")}
+                  </span>
+                ) : null}
               </p>
             ))}
             {order.shipments.map((shipment, index) => (

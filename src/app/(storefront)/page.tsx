@@ -5,11 +5,15 @@ import { BannerGrid } from "@/components/storefront/banner-grid";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { siteConfig } from "@/config/site.config";
 import { getCategoryTree } from "@/modules/catalog/cached";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
 
 async function FeaturedProducts() {
   await connection();
-  const products = await catalogService.getHomepageProducts(8);
+  const products = await catalogService.getHomepageProducts(
+    8,
+    await getRequestPricing(),
+  );
   return <ProductGrid products={products} />;
 }
 

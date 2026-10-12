@@ -20,8 +20,24 @@ export interface PaymentResultInput {
   rawPayload: Record<string, string>;
 }
 
+export interface DeferredTerms {
+  /** Bayinin kredi limiti (ondalık string) */
+  creditLimit: string;
+  dueAt: Date;
+}
+
 export interface OrderRepository {
   createPendingOrder(order: NewOrder): Promise<CreatedOrder>;
+  /**
+   * Vadeli ödemeli siparişi oluşturur: kredi limiti kontrolü ve stok düşümü
+   * tek transaction'da yapılır (aynı bayinin eşzamanlı siparişleri sıraya girer).
+   */
+  createDeferredOrder(
+    order: NewOrder,
+    terms: DeferredTerms,
+  ): Promise<CreatedOrder>;
+  /** Vadeli siparişin tahsil edildiğini işaretler; zaten ödenmişse false döner. */
+  markDeferredPaid(orderId: string): Promise<boolean>;
   findById(orderId: string): Promise<OrderView | null>;
   findByOrderNumber(orderNumber: string): Promise<OrderView | null>;
   findByLookupToken(token: string): Promise<OrderView | null>;
@@ -32,6 +48,7 @@ export interface OrderRepository {
     currency: string;
     status: string;
     provider: string;
+    method: "CARD" | "BANK_TRANSFER" | "DEFERRED";
   } | null>;
   applyPaymentResult(input: PaymentResultInput): Promise<PaymentOutcome>;
   /** Siparişi iptal eder; stoğu/rezervasyonu geri alır. İade ayrı yapılır. */
@@ -67,6 +84,7 @@ function toAddress(json: unknown): AddressSnapshot {
 const orderInclude = {
   items: true,
   shipments: { orderBy: { createdAt: "desc" }, take: 1 },
+  payments: { orderBy: { createdAt: "desc" }, take: 1 },
 } as const;
 
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
@@ -103,6 +121,8 @@ function toView(row: OrderRow): OrderView {
     carrier: shipment?.carrier ?? null,
     createdAt: row.createdAt,
     userId: row.userId,
+    paymentMethod: row.payments[0]?.method ?? "CARD",
+    paymentDueAt: row.payments[0]?.dueAt ?? null,
   };
 }
 
@@ -201,6 +221,141 @@ export class PrismaOrderRepository implements OrderRepository {
     });
   }
 
+  async createDeferredOrder(
+    order: NewOrder,
+    terms: DeferredTerms,
+  ): Promise<CreatedOrder> {
+    const orderNumber = generateOrderNumber();
+    const lookupToken = randomBytes(24).toString("base64url");
+
+    return this.db().$transaction(async (tx) => {
+      if (!order.userId) {
+        throw new ConflictError("Vadeli ödeme yalnızca üye bayiler içindir");
+      }
+
+      // Aynı bayinin eşzamanlı siparişlerini sıraya sokar (limit aşımı yarışı).
+      await tx.$queryRaw`SELECT "id" FROM "Customer" WHERE "userId" = ${order.userId} FOR UPDATE`;
+
+      const outstanding = await tx.order.aggregate({
+        where: {
+          userId: order.userId,
+          paymentStatus: "PENDING",
+          status: { notIn: ["CANCELLED", "REFUNDED", "PENDING_PAYMENT"] },
+          payments: { some: { method: "DEFERRED" } },
+        },
+        _sum: { grandTotal: true },
+      });
+      const used = new Decimal(outstanding._sum.grandTotal?.toString() ?? 0);
+      const requested = new Decimal(order.grandTotal);
+      const limit = new Decimal(terms.creditLimit);
+
+      if (used.plus(requested).gt(limit)) {
+        const available = Decimal.max(limit.minus(used), 0);
+        throw new ConflictError(
+          `Kredi limitiniz yetersiz (kullanılabilir: ${available.toFixed(2)} TL)`,
+        );
+      }
+
+      // Vadeli siparişte stok rezerve edilmez, doğrudan düşülür.
+      for (const item of order.items) {
+        if (!item.trackInventory) continue;
+
+        const updated = await tx.$executeRaw`
+          UPDATE "ProductVariant"
+          SET "stockQuantity" = "stockQuantity" - ${item.quantity}
+          WHERE "id" = ${item.variantId}
+            AND "isActive" = true
+            AND ("stockQuantity" - "reservedQuantity") >= ${item.quantity}`;
+
+        if (updated === 0) {
+          throw new ConflictError(
+            `"${item.productName}" için yeterli stok yok`,
+          );
+        }
+      }
+
+      const created = await tx.order.create({
+        data: {
+          orderNumber,
+          lookupToken,
+          userId: order.userId,
+          guestEmail: order.email,
+          cartId: order.cartId,
+          status: "PROCESSING",
+          paymentStatus: "PENDING",
+          currency: order.currency,
+          subtotal: order.subtotal,
+          discountTotal: order.discountTotal,
+          shippingTotal: order.shippingTotal,
+          taxTotal: order.taxTotal,
+          grandTotal: order.grandTotal,
+          couponCode: order.couponCode,
+          shippingAddress:
+            order.shippingAddress as unknown as Prisma.InputJsonValue,
+          billingAddress:
+            order.billingAddress as unknown as Prisma.InputJsonValue,
+          customerNote: order.customerNote,
+          items: {
+            create: order.items.map((item) => ({
+              variantId: item.variantId,
+              productName: item.productName,
+              variantName: item.variantName,
+              sku: item.sku,
+              unitPrice: item.unitPrice,
+              taxRate: item.taxRate,
+              quantity: item.quantity,
+              lineTotal: item.lineTotal,
+            })),
+          },
+          payments: {
+            create: {
+              provider: "deferred",
+              method: "DEFERRED",
+              amount: order.grandTotal,
+              currency: order.currency,
+              merchantOid: orderNumber,
+              dueAt: terms.dueAt,
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      if (order.couponCode) {
+        await tx.coupon.updateMany({
+          where: { code: order.couponCode },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+      if (order.cartId) {
+        await tx.cart.deleteMany({ where: { id: order.cartId } });
+      }
+
+      return {
+        orderId: created.id,
+        orderNumber,
+        lookupToken,
+        merchantOid: orderNumber,
+      };
+    });
+  }
+
+  async markDeferredPaid(orderId: string): Promise<boolean> {
+    return this.db().$transaction(async (tx) => {
+      const claimed = await tx.payment.updateMany({
+        where: { orderId, method: "DEFERRED", status: "PENDING" },
+        data: { status: "PAID", paidAt: new Date() },
+      });
+      if (claimed.count === 0) return false;
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: "PAID" },
+      });
+      return true;
+    });
+  }
+
   async findById(orderId: string): Promise<OrderView | null> {
     const row = await this.db().order.findUnique({
       where: { id: orderId },
@@ -247,6 +402,7 @@ export class PrismaOrderRepository implements OrderRepository {
       currency: payment.currency,
       status: payment.status,
       provider: payment.provider,
+      method: payment.method,
     };
   }
 
@@ -342,13 +498,18 @@ export class PrismaOrderRepository implements OrderRepository {
     await this.db().$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        include: { items: true },
+        include: {
+          items: true,
+          payments: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
       });
       if (!order) throw new NotFoundError("Sipariş");
 
+      // Ödenmiş siparişte ve vadeli (stoğu doğrudan düşülmüş) siparişte stok geri yüklenir.
       const wasPaid = order.paymentStatus === "PAID";
+      const stockConsumed = wasPaid || order.payments[0]?.method === "DEFERRED";
 
-      if (wasPaid) {
+      if (stockConsumed) {
         // Düşülmüş stok iade edilir.
         for (const item of order.items) {
           if (!item.variantId) continue;

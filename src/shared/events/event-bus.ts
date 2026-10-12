@@ -4,6 +4,8 @@
  */
 export interface DomainEvents {
   "order.paid": { orderId: string };
+  /** Havale/EFT veya vadeli ödemeyle oluşan, kart tahsilatı olmayan sipariş */
+  "order.placed": { orderId: string; method: "BANK_TRANSFER" | "DEFERRED" };
   "order.shipped": { orderId: string; trackingNumber: string | null };
   "order.cancelled": { orderId: string; refunded: boolean };
   "stock.replenished": { variantId: string };

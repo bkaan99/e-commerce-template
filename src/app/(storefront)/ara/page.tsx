@@ -4,6 +4,7 @@ import { FilterPanel } from "@/components/storefront/filter-panel";
 import { Pagination } from "@/components/storefront/pagination";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { SortLinks } from "@/components/storefront/sort-links";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
 import { parseListQuery, toSearchString } from "@/modules/catalog/query-params";
 
@@ -25,7 +26,7 @@ async function SearchContent({
     );
   }
 
-  const result = await catalogService.list(query);
+  const result = await catalogService.list(query, await getRequestPricing());
 
   return (
     <div className="flex flex-col gap-6">
