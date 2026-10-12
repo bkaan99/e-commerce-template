@@ -28,6 +28,8 @@ const envSchema = z
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
+    /** Yüklenen dosyaların dizini; varsayılan ./uploads */
+    UPLOAD_DIR: optionalString,
     TURNSTILE_SITE_KEY: optionalString,
     TURNSTILE_SECRET_KEY: optionalString,
   })
