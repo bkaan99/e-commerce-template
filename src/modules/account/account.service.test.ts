@@ -40,6 +40,9 @@ class FakeRepo implements AccountRepository {
   async markEmailVerified(userId: string) {
     this.users.get(userId)!.emailVerified = true;
   }
+  async findProfile() {
+    return null;
+  }
   async updateProfile() {}
   async updatePassword(userId: string, passwordHash: string) {
     this.users.get(userId)!.passwordHash = passwordHash;

@@ -26,6 +26,8 @@ export interface AddressSnapshot {
 }
 
 export interface OrderItemView {
+  /** Katalogdaki varyant (silinmişse null) */
+  variantId: string | null;
   productName: string;
   variantName: string | null;
   sku: string;

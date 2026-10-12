@@ -31,7 +31,7 @@ export async function getCurrentCart(): Promise<CartView> {
 
 /** Yalnızca Server Action / Route Handler içinde çağrılmalıdır. */
 export async function persistCartCookie(
-  result: CartMutationResult,
+  result: Pick<CartMutationResult, "sessionToken" | "clearSessionToken">,
 ): Promise<void> {
   const cookieStore = await cookies();
 

@@ -34,6 +34,9 @@ class FakeRepo implements AccountRepository {
   async updatePassword(_id: string, hash: string) {
     this.user!.passwordHash = hash;
   }
+  async findProfile() {
+    return null;
+  }
   async updateProfile(_id: string, data: unknown) {
     this.profile = data;
   }

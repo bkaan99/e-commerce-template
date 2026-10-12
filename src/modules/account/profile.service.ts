@@ -32,6 +32,12 @@ export class ProfileService {
     private readonly hasher: PasswordHasher,
   ) {}
 
+  async getProfile(userId: string) {
+    const profile = await this.accounts.findProfile(userId);
+    if (!profile) throw new ValidationError("Hesap bulunamadı");
+    return profile;
+  }
+
   async updateProfile(userId: string, raw: unknown): Promise<void> {
     const parsed = profileSchema.safeParse(raw);
     if (!parsed.success) {

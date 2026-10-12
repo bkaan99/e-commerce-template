@@ -110,6 +110,7 @@ function toView(row: OrderRow): OrderView {
     billingAddress: toAddress(row.billingAddress),
     customerNote: row.customerNote,
     items: row.items.map((item) => ({
+      variantId: item.variantId,
       productName: item.productName,
       variantName: item.variantName,
       sku: item.sku,
