@@ -269,7 +269,7 @@ Uygulama sırasında alınan teknik kararlar:
 - **Listeleme sıralaması bellek içinde yapılır.** Fiyata göre sıralama için `searchListing` aktif ürünlerin kimlik ve en düşük fiyatını çeker, sıralama ve sayfalama serviste yapılır. Bu yaklaşım birkaç bin ürüne kadar yeterlidir; daha büyük kataloglarda `CatalogRepository` arkasında SQL tabanlı sıralamaya geçilmelidir.
 - **Favoriler ürün bazlıdır** (`WishlistItem.productId`); kullanıcılar bedeni değil ürünü favorilere alır.
 - **Bilinmeyen kategori/ürün adreslerinde durum kodu 200 dönebilir.** Cache Components altında içerik akıtıldığından başlık gönderildikten sonra `notFound()` durumu değiştiremez; Next.js sayfaya `noindex` ekler ve 404 arayüzünü gösterir. Arama motorları için sorun yaratmaz ama izleme araçlarında 404 sayılmaz.
-- **`use cache` kullanılmadı.** Kategori ağacı gibi veriler `use cache` ile build sırasında veritabanından okunurdu; şablonun build'i veritabanı gerektirmesin diye bilinçli olarak istek anında okunur. Performans fazında (v0.6) önbellek stratejisi yeniden değerlendirilecek.
+- **`use cache` kullanılmadı.** Kategori ağacı gibi veriler `use cache` ile build sırasında veritabanından okunurdu; şablonun build'i veritabanı gerektirmesin diye bilinçli olarak istek anında okunur. Önbellek stratejisi v0.6'da süreç içi TTL önbelleğiyle çözüldü (bölüm 17).
 - **Oturum okuyan her kod `connection()` ile istek anına alınır** (Auth.js rastgele değer ürettiği için prerender sırasında hata verirdi).
 - **shadcn/ui henüz eklenmedi.** Vitrin sade Tailwind bileşenleriyle yazıldı; admin fazında (v0.4) form ve tablo bileşenleri için eklenecek.
 - **Slug değişince yönlendirme:** `Redirect` tablosu ve sayfa tarafındaki 301 yönlendirmesi hazır; kayıtları admin paneli (v0.4) üretecek.
@@ -344,6 +344,31 @@ Uygulama sırasında alınan teknik kararlar:
 - Vadeli siparişte vade tarihi ve tahsilat yalnızca manuel yönetilir; vade yaklaşınca otomatik hatırlatma yoktur.
 - `init-project` banka hesaplarını sormaz; `project.json` elle düzenlenir.
 
-## 17. Çalışma Kuralı
+## 17. v0.6 Uygulama Notları
+
+**Kapsama alınanlar:** KVKK ve hesap özellikleri (adres defteri, profil, parola değiştirme, veri dışa aktarma, hesap silme/anonimleştirme, tekrar sipariş ver), checkout'ta kayıtlı adres seçimi, yasal sayfa şablonları, CSV ile ürün içe aktarma ve SKU bazlı toplu fiyat/stok güncelleme, personel ve özel rol yönetimi, ürün görseli yükleme (storage adapter), kargo takip bağlantıları, ERP senkronizasyon altyapısı, SEO iyileştirmeleri, vitrin okuma önbelleği, Playwright uçtan uca testleri.
+
+**Teknik kararlar**
+
+- **Hesap silme anonimleştirmedir:** kullanıcı kaydı silinmez; e-posta `silinmis-<id>@anonim.invalid` yapılır, adres/favori/sepet/stok bildirimi/rol kayıtları silinir, siparişler yasal saklama gereği korunur. Açık sipariş varken silme reddedilir; personel hesabı bu yolla silinemez.
+- **Yasal metinler şablondur ve taslak olarak seed edilir.** Hukuk danışmanı onayı olmadan yayınlanmamalıdır; seed mevcut (düzenlenmiş) içeriği ezmez. Yayındaki yasal sayfalar footer'a ve checkout onay kutusuna otomatik bağlanır.
+- **İçe aktarma mevcut doğrulamayı yeniden kullanır** (`ProductAdminService.create/validate`): her satır bir varyanttır, aynı ürün adı/slug tek ürün olur. Mevcut ürünler güncellenmez (güncelleme için toplu güncelleme). Önizleme (dry run) hiçbir şey yazmaz.
+- **Toplu güncelleme hep-ya-hiç, ERP senkronizasyonu kısmidir.** Elle yüklenen dosyada tek hata tüm dosyayı uygulamaz (yanlış fiyat riski); ERP akışında bilinmeyen/geçersiz kayıtlar atlanıp raporlanır, çünkü akış sürekli ve tek bozuk kayıt durdurmamalıdır.
+- **Yetki yükseltme engellenir:** personel yalnızca kendinde olan yetkileri rollere ekleyebilir/rollerden çıkarabilir, kendi rolünü veya durumunu değiştiremez ve `role.manage` yetkisini taşıyan son etkin kullanıcı pasifleştirilemez. Sistem rolleri değiştirilemez; atanmış rol silinemez.
+- **Personel daveti parola sıfırlama akışını kullanır:** hesap parolasız oluşturulur, kişiye "parola belirle" bağlantısı gider (bağlantı süresi dolarsa "Daveti tekrar gönder").
+- **Görsel yükleme içerik imzasına bakar:** türü istemcinin bildirdiği MIME değil magic bytes belirler; SVG kabul edilmez, boyut 5 MB ile sınırlıdır, dosya adı sunucuda rastgele üretilir. `FileStorage` arayüzü arkasında yerel disk adaptörü vardır (`UPLOAD_DIR`); S3/R2 için yeni adaptör yazılır. `/uploads/...` bir route handler'dan sunulur (`public/` çalışma anında eklenen dosyaları sunmaz).
+- **Önbellek stratejisi:** `use cache` yine kullanılmadı (build'in veritabanı istememesi). Menü, banner, yasal bağlantılar ve kategori ağacı süreç içinde 60 sn TTL ile tutulur; yönetim paneli her başarılı değişiklikte tüm vitrin önbelleklerini temizler. Çok örnekli kurulumda diğer örnekler en geç 60 sn içinde güncellenir. Fiyat, stok ve kişiye özel veri **önbelleğe alınmaz**.
+- **ERP:** `ErpConnector` arayüzü + `ErpSyncService` (yalnızca değişenleri uygular, `stock.replenished` yayınlar, denetim kaydı yazar) + 15 dakikalık worker işi. `features.erp` ve `ERP_STOCK_URL` ile açılır; hazır `HttpJsonErpConnector` `[{sku, stock, price}]` döndüren bir uç nokta bekler, farklı ERP için kendi bağlayıcınızı yazın.
+- **Kargo:** firma listesi ve takip bağlantı şablonları `src/shared/shipping/carriers.ts` içindedir (admin seçimi, müşteri sayfası ve e-posta aynı kaynağı kullanır). Firmaların takip adresleri değişebilir; canlıya geçmeden doğrulayın. Kargo firması API'leriyle otomatik durum çekme yapılmadı.
+- **Uçtan uca testler üretim derlemesine karşı çalışır** ve seed'li demo kataloğu kullanır; test personeli/müşterisi `e2e-` önekiyle oluşturulup sonunda temizlenir. Playwright'ın CJS yükleyicisi ESM Prisma istemcisini yükleyemediğinden veritabanı işleri `tsx` ile ayrı süreçte çalışır.
+
+**Bilinen sınırlar**
+
+- **İlçe listesi eklenmedi:** il listesi hazır, ilçe serbest metindir. Doğrulanmış bir il/ilçe veri seti projeye eklendiğinde `src/shared/geo` altına konulmalıdır.
+- Yüklenen ama hiçbir ürüne bağlanmayan görseller otomatik temizlenmez.
+- ERP tarafında sipariş gönderimi (ERP'ye yazma) yoktur; yalnızca stok/fiyat çekilir.
+- Bildirim e-postaları parola sıfırlama şablonunu personel daveti için de kullanır.
+
+## 18. Çalışma Kuralı
 
 Kod yazımına, proje sahibi açıkça "başla" demeden geçilmez.
