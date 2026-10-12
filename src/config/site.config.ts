@@ -95,6 +95,7 @@ export const siteConfig: SiteConfig = {
   description: projectSite.description ?? defaultSiteConfig.description,
   salesMode: projectSite.salesMode ?? defaultSiteConfig.salesMode,
   contact: { ...defaultSiteConfig.contact, ...projectSite.contact },
+  b2b: { ...defaultSiteConfig.b2b, ...projectSite.b2b },
 };
 
 /** Yapılandırma tutarsızlıklarını açılışta yakalar. */

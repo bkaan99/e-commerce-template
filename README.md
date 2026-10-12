@@ -3,7 +3,7 @@
 Türkiye pazarına yönelik e-ticaret siteleri için Next.js tabanlı, kopyalanıp kullanılan şablon.
 PayTR ödeme, B2B bayi desteği, yönetim paneli ve temiz katmanlı mimari hedefler.
 
-> **Durum:** v0.4 Admin tamamlandı (yönetim paneli: pano, sipariş/kargo/iade, ürün-kategori-nitelik, kupon/kampanya, müşteri, içerik, denetim günlüğü, CSV dışa aktarma). B2B (v0.5) ve cila (v0.6) sonraki fazlarda gelir.
+> **Durum:** v0.5 B2B tamamlandı (bayi başvurusu ve onayı, bayi grupları, grup/kademeli fiyat, fiyat görünürlüğü, havale/EFT ve vadeli ödeme, kredi limiti, minimum sipariş). Cila ve eksik parçalar (v0.6) sonraki fazda gelir.
 > Plan ve kararlar: [docs/analiz.md](docs/analiz.md)
 
 ## Gereksinimler
@@ -65,7 +65,7 @@ Yalnızca yapılandırma dosyalarını üretmek için: `npm run init-project -- 
 ```
 src/
   app/            Yönlendirme ve sayfalar (admin: app/(admin))
-  modules/        İş mantığı: auth, account, catalog, cart, checkout, orders, returns, content, reporting, notifications, stock-alerts, wishlist, admin
+  modules/        İş mantığı: auth, account, b2b, catalog, cart, checkout, orders, returns, content, reporting, notifications, stock-alerts, wishlist, admin
   components/     Vitrin bileşenleri (storefront, product, wishlist)
   integrations/   Dış servis adapter'ları (PayTR, kargo, ...)
   shared/         Ortak altyapı: env, db, hata, para, logger, kuyruk, rate limit, audit, i18n
@@ -102,6 +102,49 @@ UI → Server Action / Route Handler (ince)
 | Ortam değişkenleri                | `.env` (şema: `src/shared/env.ts`)                |
 
 Satış modları: `retail` (herkes perakende fiyat görür), `hybrid` (onaylı bayi kendi fiyatını görür), `b2b` (fiyatlar girişsiz gizli, üyelik onaylı). `retail` dışındaki modlar `features.b2b` bayrağını gerektirir; tutarsızlık açılışta hata verir.
+
+## B2B (bayi) kurulumu
+
+B2B varsayılan olarak kapalıdır. Açmak için `npm run init-project` sırasında satış modunu `hybrid` veya `b2b` seçin (ya da `src/config/project.json` içinde `site.salesMode` ve `features.b2b` ayarlayın).
+
+| Satış modu | Davranış                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------ |
+| `retail`   | Herkes perakende fiyatı görür; bayi özellikleri kapalıdır                                        |
+| `hybrid`   | Ziyaretçi perakende fiyatı görür; onaylı bayi kendi grubunun fiyatını görür                      |
+| `b2b`      | Fiyatlar yalnızca onaylı bayilere (ve personele) görünür; yalnızca onaylı bayi sipariş verebilir |
+
+Akış:
+
+1. Müşteri kayıt olur ve `/bayi-basvuru` sayfasından firma bilgilerini (VKN doğrulanır) gönderir.
+2. Yönetici `/admin/bayiler` ekranında başvuruyu onaylar: **müşteri grubu**, **kredi limiti** ve **minimum sipariş tutarı** belirler. Bayiye e-posta gider.
+3. Fiyatlar `/admin/bayi-gruplari` ekranından yönetilir: grup iskontosu (%), varyanta özel grup fiyatı ve adet kademeleri (`10:90, 50:75`).
+
+**Fiyat önceliği:** varyanta özel grup fiyatı → grup iskontosu → liste fiyatı; ardından adet kademesi uygulanır ve **en düşük fiyat** geçerli olur.
+
+**Ödeme yöntemleri (yalnızca onaylı bayiler):**
+
+- **Havale/EFT:** `src/config/project.json` içinde `site.b2b.bankAccounts` tanımlıysa görünür. Sipariş ödeme bekler, stok `bankTransferHoldHours` (varsayılan 72 saat) rezerve tutulur; yönetici sipariş sayfasından **Havale alındı** ile onaylar.
+- **Vadeli ödeme:** kredi limiti tanımlıysa görünür. Sipariş hemen onaylanır ve stok düşer; kullanılan kredi = ödenmemiş vadeli siparişler toplamıdır. Limit kontrolü aynı bayinin eşzamanlı siparişlerini sıraya sokan bir kilitle yapılır. Tahsilat **Tahsil edildi** ile işaretlenir.
+
+```json
+{
+  "site": {
+    "salesMode": "hybrid",
+    "b2b": {
+      "deferredPaymentDays": 30,
+      "bankTransferHoldHours": 72,
+      "bankAccounts": [
+        {
+          "bank": "Örnek Bank",
+          "accountName": "Firma A.Ş.",
+          "iban": "TR00 0000 0000 0000 0000 0000 00"
+        }
+      ]
+    }
+  },
+  "features": { "b2b": true }
+}
+```
 
 ## Ödeme (PayTR)
 

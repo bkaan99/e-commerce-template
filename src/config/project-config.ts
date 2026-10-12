@@ -13,6 +13,8 @@ export interface ProjectConfig {
     description?: string;
     salesMode?: SalesMode;
     contact?: Partial<SiteConfig["contact"]>;
+    /** B2B ödeme ayarları (havale hesapları, vade, rezervasyon süresi) */
+    b2b?: Partial<SiteConfig["b2b"]>;
   };
   features?: Partial<Features>;
   theme?: { colors?: Partial<Theme["colors"]> };
