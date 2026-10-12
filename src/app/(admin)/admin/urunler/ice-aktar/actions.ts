@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateStorefrontCaches } from "@/shared/cache/registry";
 import {
   getBulkUpdateService,
   getProductImportService,
@@ -52,6 +53,7 @@ export async function runImportAction(
         : await getBulkUpdateService().run(csv, { dryRun }, actor);
 
     if (!dryRun) {
+      invalidateStorefrontCaches();
       revalidatePath("/admin/urunler");
       revalidatePath("/", "layout");
     }

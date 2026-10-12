@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { isFeatureEnabled } from "@/config/features";
 import { siteConfig } from "@/config/site.config";
 import { getCategoryTree } from "@/modules/catalog/cached";
-import { getContentService } from "@/modules/content/container";
+import { getCachedMenu } from "@/modules/content/cached";
 import { AccountLink } from "./account-link";
 import { CartBadge } from "./cart-badge";
 
@@ -12,7 +12,7 @@ async function CategoryNav() {
   await connection();
   const [tree, extra] = await Promise.all([
     getCategoryTree(),
-    getContentService().menu("header"),
+    getCachedMenu("header"),
   ]);
 
   return (

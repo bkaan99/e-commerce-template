@@ -1,12 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { connection } from "next/server";
-import { getContentService } from "@/modules/content/container";
+import { getCachedBanners } from "@/modules/content/cached";
 
 /** Ana sayfa bannerları; yalnızca aktif ve tarih aralığı uygun olanlar. */
 export async function BannerGrid() {
   await connection();
-  const banners = (await getContentService().activeBanners()).slice(0, 4);
+  const banners = (await getCachedBanners()).slice(0, 4);
   if (banners.length === 0) return null;
 
   // Tailwind dinamik sınıf adlarını derlemediği için sınıflar açıkça yazılır.
