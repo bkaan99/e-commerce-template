@@ -11,6 +11,10 @@ import {
   type EmailContext,
 } from "./templates/order-emails";
 import {
+  renderDealerApplicationForAdmin,
+  renderDealerDecision,
+} from "./templates/dealer-emails";
+import {
   renderEmailVerification,
   renderPasswordReset,
 } from "./templates/account-emails";
@@ -81,6 +85,28 @@ export class NotificationService {
     await this.enqueue(
       email,
       renderPasswordReset(link, { siteName: this.context.siteName }),
+    );
+  }
+
+  async sendDealerApplicationToAdmin(application: {
+    companyName: string;
+    taxNumber: string;
+    email: string;
+  }): Promise<void> {
+    await this.enqueue(
+      this.adminEmail,
+      renderDealerApplicationForAdmin(application, this.context),
+    );
+  }
+
+  async sendDealerDecision(
+    email: string,
+    approved: boolean,
+    note: string | null,
+  ): Promise<void> {
+    await this.enqueue(
+      email,
+      renderDealerDecision(approved, note, this.context),
     );
   }
 

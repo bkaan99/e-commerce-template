@@ -43,6 +43,14 @@ export interface SiteConfig {
   auditLog: {
     retentionDays: number;
   };
+  b2b: {
+    /** Vadeli ödemede varsayılan vade (gün) */
+    deferredPaymentDays: number;
+    /** Havale/EFT siparişinde stoğun rezerve tutulacağı süre (saat) */
+    bankTransferHoldHours: number;
+    /** Havale/EFT seçeneğinde müşteriye gösterilen hesaplar; boşsa havale kapalıdır */
+    bankAccounts: { bank: string; accountName: string; iban: string }[];
+  };
 }
 
 const defaultSiteConfig: SiteConfig = {
@@ -71,6 +79,11 @@ const defaultSiteConfig: SiteConfig = {
   },
   auditLog: {
     retentionDays: 365,
+  },
+  b2b: {
+    deferredPaymentDays: 30,
+    bankTransferHoldHours: 72,
+    bankAccounts: [],
   },
 };
 
