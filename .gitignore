@@ -46,3 +46,7 @@ next-env.d.ts
 
 # Yüklenen dosyalar
 /uploads
+
+# Playwright
+/test-results
+/playwright-report

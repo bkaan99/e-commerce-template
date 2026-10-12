@@ -26,7 +26,8 @@
     "test:all": "vitest run",
     "test:watch": "vitest --project unit",
     "init-project": "tsx scripts/init-project.ts",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.2",
@@ -49,6 +50,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22",
     "@types/nodemailer": "^8.0.2",
