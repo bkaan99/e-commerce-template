@@ -6,6 +6,8 @@ import type {
 
 export type { InvoiceType, OrderStatus, PaymentStatus };
 
+export type PaymentMethod = "CARD" | "BANK_TRANSFER" | "DEFERRED";
+
 /** Sipariş anındaki adres kopyası; adres defteri değişse de sipariş değişmez. */
 export interface AddressSnapshot {
   firstName: string;
@@ -54,6 +56,10 @@ export interface OrderView {
   carrier: string | null;
   createdAt: Date;
   userId: string | null;
+  /** Son ödeme kaydının yöntemi */
+  paymentMethod: PaymentMethod;
+  /** Vadeli ödemede vade tarihi */
+  paymentDueAt: Date | null;
 }
 
 export interface NewOrderItem {
@@ -86,7 +92,7 @@ export interface NewOrder {
   items: NewOrderItem[];
   reservationMinutes: number;
   paymentProvider: string;
-  paymentMethod: "CARD" | "BANK_TRANSFER" | "DEFERRED";
+  paymentMethod: PaymentMethod;
 }
 
 export interface CreatedOrder {

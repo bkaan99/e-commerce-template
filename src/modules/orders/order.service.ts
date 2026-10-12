@@ -90,15 +90,21 @@ export class OrderService {
       const payment = await this.orders.getPaymentForOrder(order.id);
       if (!payment) throw new NotFoundError("Ödeme");
 
-      // İade başarısızsa hata fırlar ve sipariş değişmeden kalır.
-      const refund = await this.refunder.refund({
-        merchantOid: payment.merchantOid,
-        amount: payment.amount,
-      });
+      // Yalnızca kartla tahsil edilen ödeme sağlayıcı üzerinden iade edilir;
+      // havale ve vadeli ödemede iade manuel yapılır. İade başarısızsa hata
+      // fırlar ve sipariş değişmeden kalır.
+      const refund =
+        payment.method === "CARD"
+          ? await this.refunder.refund({
+              merchantOid: payment.merchantOid,
+              amount: payment.amount,
+            })
+          : { providerRef: null };
+
       await this.orders.recordRefund(
         order.id,
         payment.amount,
-        "İptal",
+        payment.method === "CARD" ? "İptal" : "İptal (manuel iade)",
         refund.providerRef,
       );
     }

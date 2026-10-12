@@ -264,3 +264,174 @@ describe("PrismaOrderRepository", () => {
     ).toBe(1);
   });
 });
+
+describe("PrismaOrderRepository: vadeli sipariş", () => {
+  const tag = randomUUID().slice(0, 8);
+  let db: PrismaClient;
+  let repo: PrismaOrderRepository;
+  let variantId: string;
+  let userId: string;
+
+  beforeAll(async () => {
+    db = createPrismaClient(process.env["TEST_DATABASE_URL"]!);
+    repo = new PrismaOrderRepository(() => db);
+
+    const category = await db.category.create({
+      data: { name: "Vadeli", slug: `deferred-${tag}` },
+    });
+    const product = await db.product.create({
+      data: {
+        name: `Vadeli Ürün ${tag}`,
+        slug: `vadeli-urun-${tag}`,
+        status: "ACTIVE",
+        categoryId: category.id,
+        variants: {
+          create: { sku: `DEF-${tag}`, price: "100.00", stockQuantity: 100 },
+        },
+      },
+      include: { variants: true },
+    });
+    variantId = product.variants[0]!.id;
+
+    const user = await db.user.create({
+      data: {
+        email: `bayi-${tag}@example.com`,
+        firstName: "Bayi",
+        lastName: "Test",
+        customer: { create: { b2bStatus: "APPROVED", creditLimit: "1000.00" } },
+      },
+    });
+    userId = user.id;
+  });
+
+  afterAll(async () => {
+    await db.$disconnect();
+  });
+
+  const deferredOrder = (amount: number): NewOrder => ({
+    userId,
+    email: `bayi-${tag}@example.com`,
+    cartId: null,
+    currency: "TRY",
+    subtotal: amount.toFixed(2),
+    discountTotal: "0.00",
+    shippingTotal: "0.00",
+    taxTotal: "0.00",
+    grandTotal: amount.toFixed(2),
+    couponCode: null,
+    shippingAddress: address,
+    billingAddress: address,
+    customerNote: null,
+    reservationMinutes: 15,
+    paymentProvider: "deferred",
+    paymentMethod: "DEFERRED",
+    items: [
+      {
+        variantId,
+        productName: `Vadeli Ürün ${tag}`,
+        variantName: null,
+        sku: `DEF-${tag}`,
+        unitPrice: "100.00",
+        taxRate: "20.00",
+        quantity: amount / 100,
+        lineTotal: amount.toFixed(2),
+        trackInventory: true,
+      },
+    ],
+  });
+
+  const terms = {
+    creditLimit: "1000.00",
+    dueAt: new Date(Date.now() + 30 * 86_400_000),
+  };
+
+  it("kredi limiti içinde siparişi onaylar ve stoğu doğrudan düşer", async () => {
+    const before = await db.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+    });
+
+    const created = await repo.createDeferredOrder(deferredOrder(300), terms);
+
+    const order = await repo.findByOrderNumber(created.orderNumber);
+    expect(order).toMatchObject({
+      status: "PROCESSING",
+      paymentStatus: "PENDING",
+      paymentMethod: "DEFERRED",
+    });
+    expect(order?.paymentDueAt).not.toBeNull();
+
+    const after = await db.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+    });
+    expect(after.stockQuantity).toBe(before.stockQuantity - 3);
+    expect(after.reservedQuantity).toBe(before.reservedQuantity);
+  });
+
+  it("kredi limitini aşan siparişi reddeder ve stoğa dokunmaz", async () => {
+    // Önceki testten 300 TL kullanımda; 800 TL eklenince 1100 > 1000
+    const before = await db.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+    });
+
+    await expect(
+      repo.createDeferredOrder(deferredOrder(800), terms),
+    ).rejects.toThrow("Kredi limitiniz yetersiz");
+
+    const after = await db.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+    });
+    expect(after.stockQuantity).toBe(before.stockQuantity);
+  });
+
+  it("eşzamanlı siparişlerde limit aşılmaz (satır kilidi)", async () => {
+    const racer = await db.user.create({
+      data: {
+        email: `yaris-${tag}@example.com`,
+        firstName: "Yarış",
+        lastName: "Bayi",
+        customer: { create: { b2bStatus: "APPROVED", creditLimit: "500.00" } },
+      },
+    });
+    const make = (): NewOrder => ({ ...deferredOrder(300), userId: racer.id });
+
+    const results = await Promise.allSettled([
+      repo.createDeferredOrder(make(), { ...terms, creditLimit: "500.00" }),
+      repo.createDeferredOrder(make(), { ...terms, creditLimit: "500.00" }),
+      repo.createDeferredOrder(make(), { ...terms, creditLimit: "500.00" }),
+    ]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+  });
+
+  it("tahsil edilince PAID olur; ikinci işaretleme etkisizdir", async () => {
+    const created = await repo.createDeferredOrder(
+      { ...deferredOrder(100) },
+      { ...terms, creditLimit: "5000.00" },
+    );
+
+    expect(await repo.markDeferredPaid(created.orderId)).toBe(true);
+    expect(await repo.markDeferredPaid(created.orderId)).toBe(false);
+
+    const order = await repo.findByOrderNumber(created.orderNumber);
+    expect(order?.paymentStatus).toBe("PAID");
+  });
+
+  it("iptal edilen vadeli sipariş stoğu geri yükler ve krediyi serbest bırakır", async () => {
+    const created = await repo.createDeferredOrder(deferredOrder(100), {
+      ...terms,
+      creditLimit: "5000.00",
+    });
+    const mid = await db.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+    });
+
+    await repo.cancelOrder(created.orderId, false);
+
+    const after = await db.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+    });
+    expect(after.stockQuantity).toBe(mid.stockQuantity + 1);
+    const order = await repo.findByOrderNumber(created.orderNumber);
+    expect(order?.status).toBe("CANCELLED");
+  });
+});

@@ -101,6 +101,7 @@ class FakeCheckoutRepo implements CheckoutRepository {
 
 class FakeOrders implements OrderRepository {
   created: NewOrder[] = [];
+  deferred: NewOrder[] = [];
   couponUses = 0;
   async createPendingOrder(order: NewOrder) {
     this.created.push(order);
@@ -113,6 +114,19 @@ class FakeOrders implements OrderRepository {
   }
   async countCouponUses() {
     return this.couponUses;
+  }
+  async createDeferredOrder(order: NewOrder) {
+    this.created.push(order);
+    this.deferred.push(order);
+    return {
+      orderId: "o2",
+      orderNumber: "SDEF",
+      lookupToken: "tok2",
+      merchantOid: "SDEF",
+    };
+  }
+  async markDeferredPaid() {
+    return true;
   }
   async findById() {
     return null;

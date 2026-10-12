@@ -66,6 +66,9 @@ export function getNotificationService(): NotificationService {
   const bus = getEventBus();
   const service = notifications;
   bus.subscribe("order.paid", ({ orderId }) => service.onOrderPaid(orderId));
+  bus.subscribe("order.placed", ({ orderId, method }) =>
+    service.onOrderPlaced(orderId, method),
+  );
   bus.subscribe("order.cancelled", ({ orderId, refunded }) =>
     service.onOrderCancelled(orderId, refunded),
   );

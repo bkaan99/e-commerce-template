@@ -48,6 +48,8 @@ const makeOrder = (overrides: Partial<OrderView> = {}): OrderView => ({
   carrier: null,
   createdAt: new Date(),
   userId: "u1",
+  paymentMethod: "CARD",
+  paymentDueAt: null,
   ...overrides,
 });
 
@@ -60,6 +62,12 @@ class FakeOrders implements OrderRepository {
 
   async createPendingOrder(): Promise<never> {
     throw new Error("kullanılmaz");
+  }
+  async createDeferredOrder(): Promise<never> {
+    throw new Error("kullanılmaz");
+  }
+  async markDeferredPaid() {
+    return true;
   }
   async findById(id: string) {
     return this.order && this.order.id === id ? this.order : null;
@@ -80,6 +88,7 @@ class FakeOrders implements OrderRepository {
       currency: "TRY",
       status: "PENDING",
       provider: "paytr",
+      method: "CARD" as const,
     };
   }
   async applyPaymentResult(input: PaymentResultInput) {
