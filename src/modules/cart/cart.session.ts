@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "../auth/session";
+import { getRequestPricing } from "../b2b/pricing-identity";
 import { cartService } from "./container";
 import type { CartIdentity, CartMutationResult, CartView } from "./cart.types";
 
@@ -9,11 +10,16 @@ const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
 
 /** İstekteki sepet sahibini (üye veya misafir çerezi) belirler. */
 export async function getCartIdentity(): Promise<CartIdentity> {
-  const [user, cookieStore] = await Promise.all([getCurrentUser(), cookies()]);
+  const [user, cookieStore, pricing] = await Promise.all([
+    getCurrentUser(),
+    cookies(),
+    getRequestPricing(),
+  ]);
 
   return {
     userId: user?.id ?? null,
     sessionToken: cookieStore.get(CART_COOKIE)?.value ?? null,
+    customerGroupId: pricing.customerGroupId,
   };
 }
 

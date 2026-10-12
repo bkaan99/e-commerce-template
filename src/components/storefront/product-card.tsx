@@ -30,12 +30,18 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             </span>
           ) : null}
           <h3 className="text-sm font-medium">{product.name}</h3>
-          <Price
-            value={product.price}
-            compareAt={product.compareAtPrice}
-            currency={product.currency}
-            prefix={product.hasPriceRange ? "’den başlayan" : undefined}
-          />
+          {product.priceVisible ? (
+            <Price
+              value={product.price}
+              compareAt={product.compareAtPrice}
+              currency={product.currency}
+              prefix={product.hasPriceRange ? "’den başlayan" : undefined}
+            />
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              Fiyat için giriş yapın
+            </span>
+          )}
         </div>
       </Link>
       {isFeatureEnabled("wishlist") ? (

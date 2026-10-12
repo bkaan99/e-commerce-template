@@ -50,7 +50,7 @@ export function ProductView({
     variant?.availableQuantity ?? MAX_QUANTITY,
     MAX_QUANTITY,
   );
-  const canBuy = variant !== null && variant.inStock;
+  const canBuy = product.priceVisible && variant !== null && variant.inStock;
 
   function select(optionId: string, valueId: string) {
     setSelection((current) => ({ ...current, [optionId]: valueId }));
@@ -137,7 +137,19 @@ export function ProductView({
           </div>
         </div>
 
-        {variant ? (
+        {!product.priceVisible ? (
+          <p className="rounded-theme border border-border p-3 text-sm">
+            Fiyatları görmek için bayi girişi yapın.{" "}
+            <a href="/giris" className="underline">
+              Giriş yap
+            </a>{" "}
+            veya{" "}
+            <a href="/bayi-basvuru" className="underline">
+              bayi olun
+            </a>
+            .
+          </p>
+        ) : variant ? (
           <div className="text-lg">
             <Price
               value={variant.price}

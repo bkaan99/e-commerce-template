@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { isFeatureEnabled } from "@/config/features";
 import { getCurrentUser } from "@/modules/auth/session";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
 import { wishlistService } from "@/modules/wishlist/container";
 import { GuestWishlist } from "./guest-wishlist";
@@ -18,7 +19,10 @@ async function WishlistContent() {
   if (!user) return <GuestWishlist />;
 
   const ids = await wishlistService.list(user.id);
-  const cards = await catalogService.getCardsInOrder(ids);
+  const cards = await catalogService.getCardsInOrder(
+    ids,
+    await getRequestPricing(),
+  );
 
   if (cards.length === 0) {
     return (

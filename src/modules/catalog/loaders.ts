@@ -6,6 +6,7 @@ import type {
   CategoryNode,
   ProductDetail,
 } from "./catalog.types";
+import { getRequestPricing } from "../b2b/pricing-identity";
 import { catalogService } from "./container";
 
 export type LoadResult<T> =
@@ -42,7 +43,13 @@ export const loadCategory = cache(
 export const loadProduct = cache(
   async (slug: string): Promise<LoadResult<ProductDetail>> => {
     try {
-      return { kind: "ok", value: await catalogService.getProductBySlug(slug) };
+      return {
+        kind: "ok",
+        value: await catalogService.getProductBySlug(
+          slug,
+          await getRequestPricing(),
+        ),
+      };
     } catch (error) {
       if (error instanceof NotFoundError) {
         return resolveMissing(`/urun/${slug}`);

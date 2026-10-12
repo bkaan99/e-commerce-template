@@ -7,6 +7,7 @@ import { JsonLd } from "@/components/storefront/json-ld";
 import { Pagination } from "@/components/storefront/pagination";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { SortLinks } from "@/components/storefront/sort-links";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
 import { loadCategory } from "@/modules/catalog/loaders";
 import { parseListQuery, toSearchString } from "@/modules/catalog/query-params";
@@ -45,7 +46,7 @@ async function CategoryContent({
 
   const { category, breadcrumbs } = loaded.value;
   const query = parseListQuery(await searchParams, { categorySlug: slug });
-  const result = await catalogService.list(query);
+  const result = await catalogService.list(query, await getRequestPricing());
   const basePath = `/kategori/${category.slug}`;
 
   const crumbs = [

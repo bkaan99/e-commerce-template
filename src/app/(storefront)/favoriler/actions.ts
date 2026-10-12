@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
 import type { ProductCard } from "@/modules/catalog/catalog.types";
 import { getCurrentUser } from "@/modules/auth/session";
@@ -52,5 +53,8 @@ export async function getWishlistCardsAction(
   productIds: string[],
 ): Promise<ProductCard[]> {
   if (!isFeatureEnabled("wishlist")) return [];
-  return catalogService.getCardsInOrder(productIds.slice(0, 100));
+  return catalogService.getCardsInOrder(
+    productIds.slice(0, 100),
+    await getRequestPricing(),
+  );
 }
