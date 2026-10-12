@@ -10,6 +10,8 @@ import { PrismaPromotionRepository } from "./promotions/promotion.repository";
 import { PromotionService } from "./promotions/promotion.service";
 import { AuditQueryService } from "./audit/audit-query";
 import { CustomerQueryService } from "./customers/customer-query";
+import { PrismaPriceListRepository } from "./pricing/price-list.repository";
+import { PriceListService } from "./pricing/price-list.service";
 import { PrismaAdminOrderRepository } from "./orders/admin-order.repository";
 import { AdminOrderService } from "./orders/admin-order.service";
 
@@ -50,4 +52,11 @@ export function getAuditQueryService(): AuditQueryService {
 
 export function getCustomerQueryService(): CustomerQueryService {
   return new CustomerQueryService(getDb);
+}
+
+export function getPriceListService(): PriceListService {
+  return new PriceListService(
+    new PrismaPriceListRepository(getDb),
+    getAuditLogger(),
+  );
 }
