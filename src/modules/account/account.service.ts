@@ -30,6 +30,10 @@ export interface AccountRepository {
   }): Promise<AccountUser>;
   markEmailVerified(userId: string): Promise<void>;
   updatePassword(userId: string, passwordHash: string): Promise<void>;
+  updateProfile(
+    userId: string,
+    data: { firstName: string; lastName: string; phone: string | null },
+  ): Promise<void>;
 }
 
 /** Hesap e-postalarını gönderen sözleşme (kuyruk arkasındaki NotificationService). */
