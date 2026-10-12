@@ -73,6 +73,42 @@ async function DashboardContent() {
         </Card>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Yeni müşteri</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-3">
+            <span className="text-2xl font-semibold">
+              {data.customers.newCustomers}
+            </span>
+            <Change value={data.customers.newChangePercent} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Alışveriş yapan üye</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="text-2xl font-semibold">
+              {data.customers.buyers}
+            </span>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Tekrar alışveriş oranı</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="text-2xl font-semibold">
+              {data.customers.returningRate === null
+                ? "—"
+                : `%${data.customers.returningRate}`}
+            </span>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Dikkat gerektirenler</CardTitle>

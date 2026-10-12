@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import type { PrismaClient } from "@/shared/prisma-client";
 import type {
+  CustomerMetrics,
   LowStockItem,
   PeriodTotals,
   ReportingRepository,
@@ -127,5 +128,48 @@ export class PrismaReportingRepository implements ReportingRepository {
           ]
         : [];
     });
+  }
+
+  async customerMetrics(from: Date, to: Date): Promise<CustomerMetrics> {
+    const [newCustomers, buyerRows] = await Promise.all([
+      this.db().user.count({
+        where: {
+          type: "CUSTOMER",
+          anonymizedAt: null,
+          createdAt: { gte: from, lt: to },
+        },
+      }),
+      this.db().order.groupBy({
+        by: ["userId"],
+        where: {
+          userId: { not: null },
+          status: { in: [...REVENUE_STATUSES] },
+          createdAt: { gte: from, lt: to },
+        },
+      }),
+    ]);
+
+    const buyerIds = buyerRows
+      .map((row) => row.userId)
+      .filter((id): id is string => id !== null);
+
+    // Dönemden önce de gelir sayılan siparişi olanlar "tekrar eden" alıcıdır.
+    const returning =
+      buyerIds.length === 0
+        ? []
+        : await this.db().order.groupBy({
+            by: ["userId"],
+            where: {
+              userId: { in: buyerIds },
+              status: { in: [...REVENUE_STATUSES] },
+              createdAt: { lt: from },
+            },
+          });
+
+    return {
+      newCustomers,
+      buyers: buyerIds.length,
+      returningBuyers: returning.length,
+    };
   }
 }

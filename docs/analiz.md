@@ -1,6 +1,6 @@
 # E-Ticaret Şablonu: Analiz ve Mimari Plan
 
-> Durum: **v0.1 İskelet, v0.2 Vitrin, v0.3 Satış, v0.4 Admin ve v0.5 B2B tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
+> Durum: **v0.1 İskelet, v0.2 Vitrin, v0.3 Satış, v0.4 Admin, v0.5 B2B ve v0.6 Cila tamamlandı.** Sonraki fazlara proje sahibinin onayıyla geçilir.
 > Son güncelleme: 2026-10-11
 
 ## 1. Amaç
@@ -346,7 +346,7 @@ Uygulama sırasında alınan teknik kararlar:
 
 ## 17. v0.6 Uygulama Notları
 
-**Kapsama alınanlar:** KVKK ve hesap özellikleri (adres defteri, profil, parola değiştirme, veri dışa aktarma, hesap silme/anonimleştirme, tekrar sipariş ver), checkout'ta kayıtlı adres seçimi, yasal sayfa şablonları, CSV ile ürün içe aktarma ve SKU bazlı toplu fiyat/stok güncelleme, personel ve özel rol yönetimi, ürün görseli yükleme (storage adapter), kargo takip bağlantıları, ERP senkronizasyon altyapısı, SEO iyileştirmeleri, vitrin okuma önbelleği, Playwright uçtan uca testleri.
+**Kapsama alınanlar:** pano müşteri metrikleri (yeni müşteri, alışveriş yapan üye, tekrar alışveriş oranı), KVKK ve hesap özellikleri (adres defteri, profil, parola değiştirme, veri dışa aktarma, hesap silme/anonimleştirme, tekrar sipariş ver), checkout'ta kayıtlı adres seçimi, yasal sayfa şablonları, CSV ile ürün içe aktarma ve SKU bazlı toplu fiyat/stok güncelleme, personel ve özel rol yönetimi, ürün görseli yükleme (storage adapter), kargo takip bağlantıları, ERP senkronizasyon altyapısı, SEO iyileştirmeleri, vitrin okuma önbelleği, Playwright uçtan uca testleri.
 
 **Teknik kararlar**
 

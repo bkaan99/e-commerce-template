@@ -24,8 +24,22 @@ export interface StockDemandItem {
   waiting: number;
 }
 
+export interface CustomerMetrics {
+  /** Dönemde kayıt olan müşteri sayısı */
+  newCustomers: number;
+  /** Dönemde sipariş veren benzersiz üye sayısı */
+  buyers: number;
+  /** Bunlardan daha önce de sipariş vermiş olanlar */
+  returningBuyers: number;
+}
+
 export interface DashboardData {
   periodDays: number;
+  customers: CustomerMetrics & {
+    newChangePercent: number | null;
+    /** Tekrar alışveriş yapan üye oranı (%), alıcı yoksa null */
+    returningRate: number | null;
+  };
   revenue: { current: string; previous: string; changePercent: number | null };
   orders: { current: number; previous: number; changePercent: number | null };
   averageOrderValue: string;
@@ -47,6 +61,7 @@ export interface ReportingRepository {
   countPendingDealers(): Promise<number>;
   lowStock(threshold: number, limit: number): Promise<LowStockItem[]>;
   stockDemand(limit: number): Promise<StockDemandItem[]>;
+  customerMetrics(from: Date, to: Date): Promise<CustomerMetrics>;
 }
 
 /** Önceki döneme göre yüzde değişim; önceki dönem 0 ise karşılaştırılamaz (null). */
@@ -87,6 +102,8 @@ export class ReportingService {
       pendingDealers,
       lowStock,
       stockDemand,
+      customers,
+      previousCustomers,
     ] = await Promise.all([
       this.repository.periodTotals(start, end),
       this.repository.periodTotals(previousStart, start),
@@ -96,6 +113,8 @@ export class ReportingService {
       this.repository.countPendingDealers(),
       this.repository.lowStock(this.lowStockThreshold, 10),
       this.repository.stockDemand(5),
+      this.repository.customerMetrics(start, end),
+      this.repository.customerMetrics(previousStart, start),
     ]);
 
     const average =
@@ -105,6 +124,19 @@ export class ReportingService {
 
     return {
       periodDays,
+      customers: {
+        ...customers,
+        newChangePercent: percentChange(
+          customers.newCustomers,
+          previousCustomers.newCustomers,
+        ),
+        returningRate:
+          customers.buyers === 0
+            ? null
+            : Math.round(
+                (customers.returningBuyers / customers.buyers) * 1000,
+              ) / 10,
+      },
       revenue: {
         current: current.revenue.toFixed(2),
         previous: previous.revenue.toFixed(2),
