@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { features } from "@/config/features";
 import { siteConfig } from "@/config/site.config";
 import { visibleNav } from "@/modules/admin/navigation";
 import { requireStaff } from "@/modules/auth/session";
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 async function AdminShell({ children }: { children: React.ReactNode }) {
   const user = await requireStaff();
-  const nav = visibleNav(user.permissions);
+  const nav = visibleNav(user.permissions, { b2bEnabled: features.b2b });
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

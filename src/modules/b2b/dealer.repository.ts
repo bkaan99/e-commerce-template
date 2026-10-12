@@ -118,8 +118,10 @@ export class PrismaDealerRepository implements DealerRepository {
       companyName: row.companyName,
       taxNumber: row.taxNumber,
       taxOffice: row.taxOffice,
+      groupId: row.groupId,
       groupName: row.group?.name ?? null,
       creditLimit: row.creditLimit?.toFixed(2) ?? null,
+      minOrderAmount: row.minOrderAmount?.toFixed(2) ?? null,
       note: row.b2bNote,
       createdAt: row.createdAt,
     }));

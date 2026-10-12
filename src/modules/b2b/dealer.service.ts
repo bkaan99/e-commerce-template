@@ -130,6 +130,37 @@ export class DealerService {
     }
   }
 
+  /** Onaylı bayinin grubunu, kredi limitini ve minimum sipariş tutarını günceller. */
+  async updateTerms(userId: string, raw: unknown, actor: Actor): Promise<void> {
+    const parsed = dealerApprovalSchema.safeParse(raw);
+    if (!parsed.success) throw new ValidationError(firstIssue(parsed.error));
+
+    const profile = await this.requireProfile(userId);
+    if (profile.status !== "APPROVED") {
+      throw new ConflictError(
+        "Yalnızca onaylı bayilerin koşulları güncellenebilir",
+      );
+    }
+    if (!(await this.dealers.groupExists(parsed.data.groupId))) {
+      throw new ValidationError("Müşteri grubu bulunamadı");
+    }
+
+    await this.dealers.updateTerms(userId, parsed.data);
+    await this.audit.log({
+      actorId: actor.userId,
+      ip: actor.ip,
+      action: "dealer.terms",
+      entityType: "Customer",
+      entityId: userId,
+      before: {
+        groupId: profile.groupId,
+        creditLimit: profile.creditLimit,
+        minOrderAmount: profile.minOrderAmount,
+      },
+      after: parsed.data,
+    });
+  }
+
   async reject(
     userId: string,
     note: string | null,

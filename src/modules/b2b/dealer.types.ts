@@ -24,8 +24,10 @@ export interface DealerApplicationRow {
   companyName: string | null;
   taxNumber: string | null;
   taxOffice: string | null;
+  groupId: string | null;
   groupName: string | null;
   creditLimit: string | null;
+  minOrderAmount: string | null;
   note: string | null;
   createdAt: Date;
 }
