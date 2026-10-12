@@ -1,3 +1,4 @@
+import { trackingUrl } from "@/shared/shipping/carriers";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -134,6 +135,19 @@ async function OrderContent({
         <p>
           Kargo: {order.carrier ? `${order.carrier} · ` : ""}
           <strong>{order.trackingNumber}</strong>
+          {trackingUrl(order.carrier, order.trackingNumber) ? (
+            <>
+              {" · "}
+              <a
+                href={trackingUrl(order.carrier, order.trackingNumber)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Kargo takibi
+              </a>
+            </>
+          ) : null}
         </p>
       ) : null}
 

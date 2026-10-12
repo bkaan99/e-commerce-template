@@ -1,4 +1,5 @@
 import { formatMoney } from "@/shared/money";
+import { trackingUrl } from "@/shared/shipping/carriers";
 import type { OrderView } from "@/modules/orders/order.types";
 import { escapeHtml, wrapInLayout, type RenderedEmail } from "./layout";
 
@@ -90,6 +91,7 @@ export function renderOrderShipped(
   const tracking = order.trackingNumber
     ? `${order.carrier ? `${order.carrier} ` : ""}takip no: ${order.trackingNumber}`
     : null;
+  const trackLink = trackingUrl(order.carrier, order.trackingNumber);
 
   return {
     subject: `Siparişiniz kargoya verildi: ${order.orderNumber}`,
@@ -98,9 +100,10 @@ export function renderOrderShipped(
       title: "Siparişiniz kargoya verildi",
       bodyHtml: `<p>${escapeHtml(order.orderNumber)} numaralı siparişiniz yola çıktı.</p>
         ${tracking ? `<p><strong>${escapeHtml(tracking)}</strong></p>` : ""}
+        ${trackLink ? `<p><a href="${escapeHtml(trackLink)}">Kargo takibi</a></p>` : ""}
         <p><a href="${escapeHtml(link)}">Siparişimi görüntüle</a></p>`,
     }),
-    text: `${order.orderNumber} numaralı siparişiniz kargoya verildi.${tracking ? `\n${tracking}` : ""}\n\n${link}`,
+    text: `${order.orderNumber} numaralı siparişiniz kargoya verildi.${tracking ? `\n${tracking}` : ""}${trackLink ? `\nKargo takibi: ${trackLink}` : ""}\n\n${link}`,
   };
 }
 

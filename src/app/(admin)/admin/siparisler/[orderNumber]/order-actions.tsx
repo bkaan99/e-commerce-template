@@ -1,5 +1,6 @@
 "use client";
 
+import { CARRIER_NAMES } from "@/shared/shipping/carriers";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +13,6 @@ import {
   markProcessingAction,
   shipOrderAction,
 } from "../actions";
-
-const CARRIERS = [
-  "Yurtiçi Kargo",
-  "Aras Kargo",
-  "MNG Kargo",
-  "PTT Kargo",
-  "Diğer",
-];
 
 export function OrderActions({
   orderNumber,
@@ -133,8 +126,12 @@ export function OrderActions({
         >
           <label className="flex flex-col gap-1 text-sm">
             Kargo firması
-            <Select name="carrier" defaultValue={CARRIERS[0]} className="w-48">
-              {CARRIERS.map((carrier) => (
+            <Select
+              name="carrier"
+              defaultValue={CARRIER_NAMES[0]}
+              className="w-48"
+            >
+              {CARRIER_NAMES.map((carrier) => (
                 <option key={carrier} value={carrier}>
                   {carrier}
                 </option>
