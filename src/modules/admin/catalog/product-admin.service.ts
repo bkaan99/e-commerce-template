@@ -107,6 +107,11 @@ export class ProductAdminService {
     await this.publishReplenished(before, input);
   }
 
+  /** Kaydetmeden doğrular; hatalarda ProductValidationError fırlatır. */
+  validate(raw: unknown): ProductInput {
+    return this.parse(raw);
+  }
+
   private parse(raw: unknown): ProductInput {
     const result = productInputSchema.safeParse(raw);
     if (!result.success) {

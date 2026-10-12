@@ -14,6 +14,10 @@ import { PrismaPriceListRepository } from "./pricing/price-list.repository";
 import { PriceListService } from "./pricing/price-list.service";
 import { PrismaAdminOrderRepository } from "./orders/admin-order.repository";
 import { AdminOrderService } from "./orders/admin-order.service";
+import { PrismaBulkUpdateRepository } from "./import/bulk-update.repository";
+import { BulkUpdateService } from "./import/bulk-update.service";
+import { PrismaImportRepository } from "./import/import.repository";
+import { ProductImportService } from "./import/product-import.service";
 
 export function getAdminOrderService(): AdminOrderService {
   return new AdminOrderService(
@@ -59,5 +63,20 @@ export function getPriceListService(): PriceListService {
   return new PriceListService(
     new PrismaPriceListRepository(getDb),
     getAuditLogger(),
+  );
+}
+
+export function getBulkUpdateService(): BulkUpdateService {
+  return new BulkUpdateService(
+    new PrismaBulkUpdateRepository(getDb),
+    getEventBus(),
+    getAuditLogger(),
+  );
+}
+
+export function getProductImportService(): ProductImportService {
+  return new ProductImportService(
+    getProductAdminService(),
+    new PrismaImportRepository(getDb),
   );
 }
