@@ -9,7 +9,7 @@ import { ImportForm } from "./import-form";
 export const metadata: Metadata = { title: "Ürün içe aktarma" };
 
 async function ImportContent() {
-  const user = await adminPage(PERMISSIONS.PRODUCT_WRITE);
+  const user = await adminPage(PERMISSIONS.IMPORT_RUN);
   if (!user) return <AccessDenied />;
 
   return (

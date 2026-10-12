@@ -82,7 +82,7 @@ export async function GET(
   if (!template) return new Response("Bulunamadı", { status: 404 });
 
   try {
-    await requirePermission(PERMISSIONS.PRODUCT_WRITE);
+    await requirePermission(PERMISSIONS.IMPORT_RUN);
   } catch (error) {
     if (isAppError(error) && error.httpStatus === 403) {
       return new Response("Yetkiniz yok", { status: 403 });

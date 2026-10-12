@@ -18,6 +18,9 @@ import { PrismaBulkUpdateRepository } from "./import/bulk-update.repository";
 import { BulkUpdateService } from "./import/bulk-update.service";
 import { PrismaImportRepository } from "./import/import.repository";
 import { ProductImportService } from "./import/product-import.service";
+import { getAccountService } from "../account/container";
+import { PrismaStaffRepository } from "./staff/staff.repository";
+import { StaffService } from "./staff/staff.service";
 
 export function getAdminOrderService(): AdminOrderService {
   return new AdminOrderService(
@@ -78,5 +81,17 @@ export function getProductImportService(): ProductImportService {
   return new ProductImportService(
     getProductAdminService(),
     new PrismaImportRepository(getDb),
+  );
+}
+
+export function getStaffService(): StaffService {
+  return new StaffService(
+    new PrismaStaffRepository(getDb),
+    {
+      // Parola belirleme bağlantısı, parola sıfırlama akışıyla gönderilir.
+      sendPasswordSetup: (email) =>
+        getAccountService().requestPasswordReset(email),
+    },
+    getAuditLogger(),
   );
 }

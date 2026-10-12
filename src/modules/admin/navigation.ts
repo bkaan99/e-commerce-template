@@ -64,6 +64,16 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     permission: PERMISSIONS.CONTENT_MANAGE,
   },
   {
+    href: "/admin/personel",
+    label: "Personel",
+    permission: PERMISSIONS.ROLE_MANAGE,
+  },
+  {
+    href: "/admin/roller",
+    label: "Roller ve yetkiler",
+    permission: PERMISSIONS.ROLE_MANAGE,
+  },
+  {
     href: "/admin/denetim",
     label: "Denetim günlüğü",
     permission: PERMISSIONS.AUDIT_VIEW,

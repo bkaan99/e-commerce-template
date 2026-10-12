@@ -31,7 +31,7 @@ export async function runImportAction(
   formData: FormData,
 ): Promise<ImportFormState> {
   try {
-    const user = await requirePermission(PERMISSIONS.PRODUCT_WRITE);
+    const user = await requirePermission(PERMISSIONS.IMPORT_RUN);
     const actor = { userId: user.id, ip: await getClientIp() };
 
     const mode = formData.get("mode") === "guncelle" ? "guncelle" : "urunler";
