@@ -1,7 +1,7 @@
 import { getAuditLogger } from "@/shared/audit";
 import { getDb } from "@/shared/db";
 import { getEventBus } from "@/shared/events";
-import { getOrderService } from "../orders/container";
+import { getOrderService, orderRepository } from "../orders/container";
 import { PrismaProductAdminRepository } from "./catalog/product-admin.repository";
 import { ProductAdminService } from "./catalog/product-admin.service";
 import { PrismaTaxonomyRepository } from "./taxonomy/taxonomy.repository";
@@ -21,6 +21,7 @@ export function getAdminOrderService(): AdminOrderService {
     getOrderService(),
     getEventBus(),
     getAuditLogger(),
+    orderRepository,
   );
 }
 

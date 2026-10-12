@@ -56,3 +56,23 @@ export async function cancelOrderByStaffAction(
     paths(orderNumber),
   );
 }
+
+export async function confirmBankTransferAction(
+  orderNumber: string,
+): Promise<AdminActionResult> {
+  return runAdminAction(
+    PERMISSIONS.ORDER_UPDATE,
+    (actor) => getAdminOrderService().confirmBankTransfer(orderNumber, actor),
+    paths(orderNumber),
+  );
+}
+
+export async function markDeferredCollectedAction(
+  orderNumber: string,
+): Promise<AdminActionResult> {
+  return runAdminAction(
+    PERMISSIONS.ORDER_UPDATE,
+    (actor) => getAdminOrderService().markDeferredCollected(orderNumber, actor),
+    paths(orderNumber),
+  );
+}

@@ -1,6 +1,7 @@
 import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors";
 import type { AuditLogger } from "@/shared/audit";
 import type { EventBus } from "@/shared/events/event-bus";
+import type { OrderRepository } from "../../orders/order.repository";
 import type { OrderService } from "../../orders/order.service";
 import type { OrderStatus } from "../../orders/order.types";
 import type {
@@ -36,6 +37,10 @@ export class AdminOrderService {
     private readonly orderService: Pick<OrderService, "cancelByStaff">,
     private readonly events: EventBus,
     private readonly audit: AuditLogger,
+    private readonly payments: Pick<
+      OrderRepository,
+      "applyPaymentResult" | "markDeferredPaid"
+    >,
   ) {}
 
   list(query: AdminOrderListQuery): Promise<AdminOrderList> {
@@ -92,6 +97,71 @@ export class AdminOrderService {
     const order = await this.get(orderNumber);
     await this.move(orderNumber, "DELIVERED", actor);
     await this.orders.markShipmentsDelivered(order.id);
+  }
+
+  /** Havale/EFT'nin hesaba geçtiğini onaylar; sipariş ödenmiş sayılır ve stok düşer. */
+  async confirmBankTransfer(orderNumber: string, actor: Actor): Promise<void> {
+    const order = await this.get(orderNumber);
+    const payment = order.payments[0];
+
+    if (
+      !payment ||
+      payment.method !== "BANK_TRANSFER" ||
+      order.status !== "PENDING_PAYMENT"
+    ) {
+      throw new ConflictError("Bu sipariş için havale onayı yapılamaz");
+    }
+
+    const outcome = await this.payments.applyPaymentResult({
+      merchantOid: payment.merchantOid,
+      success: true,
+      amount: payment.amount,
+      failureReason: null,
+      rawPayload: { source: "manual", confirmedBy: actor.userId },
+    });
+
+    if (outcome.kind !== "paid") {
+      throw new ConflictError(
+        "Ödeme onaylanamadı; sipariş süresi dolmuş veya zaten işlenmiş olabilir",
+      );
+    }
+
+    await this.audit.log({
+      actorId: actor.userId,
+      ip: actor.ip,
+      action: "order.bank-transfer.confirm",
+      entityType: "Order",
+      entityId: order.id,
+      before: { status: order.status, paymentStatus: order.paymentStatus },
+      after: { status: "PAID", amount: payment.amount },
+    });
+    await this.events.publish("order.paid", { orderId: order.id });
+  }
+
+  /** Vadeli siparişin tahsil edildiğini işaretler. */
+  async markDeferredCollected(
+    orderNumber: string,
+    actor: Actor,
+  ): Promise<void> {
+    const order = await this.get(orderNumber);
+    const payment = order.payments[0];
+
+    if (!payment || payment.method !== "DEFERRED") {
+      throw new ConflictError("Bu sipariş vadeli ödemeli değil");
+    }
+
+    const updated = await this.payments.markDeferredPaid(order.id);
+    if (!updated) throw new ConflictError("Ödeme zaten tahsil edilmiş");
+
+    await this.audit.log({
+      actorId: actor.userId,
+      ip: actor.ip,
+      action: "order.deferred.collected",
+      entityType: "Order",
+      entityId: order.id,
+      before: { paymentStatus: order.paymentStatus },
+      after: { paymentStatus: "PAID", amount: payment.amount },
+    });
   }
 
   async cancel(orderNumber: string, actor: Actor): Promise<void> {

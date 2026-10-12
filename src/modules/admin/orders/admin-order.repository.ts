@@ -59,10 +59,12 @@ export interface AdminOrderDetail {
   }[];
   payments: {
     provider: string;
+    method: "CARD" | "BANK_TRANSFER" | "DEFERRED";
     status: string;
     amount: string;
     merchantOid: string;
     paidAt: Date | null;
+    dueAt: Date | null;
   }[];
   shipments: {
     carrier: string;
@@ -191,10 +193,12 @@ export class PrismaAdminOrderRepository implements AdminOrderRepository {
       })),
       payments: row.payments.map((payment) => ({
         provider: payment.provider,
+        method: payment.method,
         status: payment.status,
         amount: payment.amount.toFixed(2),
         merchantOid: payment.merchantOid,
         paidAt: payment.paidAt,
+        dueAt: payment.dueAt,
       })),
       shipments: row.shipments.map((shipment) => ({
         carrier: shipment.carrier,
