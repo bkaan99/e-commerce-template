@@ -38,7 +38,9 @@ test.describe("vitrin", () => {
     await page.getByLabel("Soyad").fill("Müşteri");
     await page.getByLabel("Cep telefonu").fill("05321234567");
     await page.locator('select[name="shipping.city"]').selectOption("İstanbul");
-    await page.getByLabel("İlçe").fill("Kadıköy");
+    await page
+      .locator('select[name="shipping.district"]')
+      .selectOption("Kadıköy");
     await page
       .getByLabel("Açık adres")
       .fill("Test Mahallesi Deneme Sokak No 1 Daire 2");

@@ -1,3 +1,4 @@
+import { TURKEY_DISTRICTS, isDistrictOf } from "@/shared/geo/turkey-districts";
 import { z } from "zod";
 
 /** Türkiye cep telefonunu 05XXXXXXXXX biçimine getirir; geçersizse null. */
@@ -62,6 +63,18 @@ export const addressSchema = z
     taxOffice: optionalTrimmed(100),
   })
   .superRefine((address, ctx) => {
+    // İl bilinen bir ilse ilçe o ile ait olmalı (yanlış il/ilçe eşleşmesini önler).
+    if (
+      address.city in TURKEY_DISTRICTS &&
+      !isDistrictOf(address.city, address.district)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["district"],
+        message: "Seçilen ile ait bir ilçe seçin",
+      });
+    }
+
     if (address.invoiceType === "INDIVIDUAL") {
       if (address.nationalId && !isValidTckn(address.nationalId)) {
         ctx.addIssue({

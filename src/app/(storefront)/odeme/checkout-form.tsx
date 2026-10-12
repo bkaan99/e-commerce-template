@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { SavedAddress } from "@/modules/account/address.repository";
+import { districtsOf } from "@/shared/geo/turkey-districts";
 import { TURKEY_PROVINCES } from "@/shared/geo/turkey-provinces";
 import type { PaymentOption } from "@/modules/checkout/checkout.service";
 import { placeOrderAction, type CheckoutFormState } from "./actions";
@@ -50,6 +51,8 @@ function AddressFields({
   const [invoiceType, setInvoiceType] = useState(
     saved?.invoiceType ?? "INDIVIDUAL",
   );
+  const [city, setCity] = useState(saved?.city ?? "");
+  const districts = districtsOf(city);
   const name = (field: string) => `${prefix}.${field}`;
 
   return (
@@ -87,7 +90,8 @@ function AddressFields({
         <select
           name={name("city")}
           required
-          defaultValue={saved?.city ?? ""}
+          value={city}
+          onChange={(event) => setCity(event.target.value)}
           className={inputClass}
         >
           <option value="" disabled>
@@ -101,12 +105,27 @@ function AddressFields({
         </select>
       </Field>
       <Field label="İlçe" name={name("district")} errors={errors}>
-        <input
+        <select
+          key={city}
           name={name("district")}
-          defaultValue={saved?.district}
           required
+          defaultValue={
+            city === saved?.city && districts.includes(saved?.district ?? "")
+              ? saved?.district
+              : ""
+          }
+          disabled={districts.length === 0}
           className={inputClass}
-        />
+        >
+          <option value="" disabled>
+            {city ? "İlçe seçin" : "Önce il seçin"}
+          </option>
+          {districts.map((district) => (
+            <option key={district} value={district}>
+              {district}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Mahalle" name={name("neighborhood")} errors={errors}>
         <input

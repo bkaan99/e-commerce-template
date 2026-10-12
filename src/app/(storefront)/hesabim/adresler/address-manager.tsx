@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { districtsOf } from "@/shared/geo/turkey-districts";
 import { TURKEY_PROVINCES } from "@/shared/geo/turkey-provinces";
 import { deleteAddressAction, saveAddressAction } from "../actions";
 
@@ -231,7 +232,13 @@ export function AddressManager({ addresses }: { addresses: AddressView[] }) {
               <select
                 className={input}
                 value={form.city}
-                onChange={(e) => set("city", e.target.value)}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    city: e.target.value,
+                    district: "",
+                  }))
+                }
               >
                 <option value="">Seçin</option>
                 {TURKEY_PROVINCES.map((province) => (
@@ -243,11 +250,21 @@ export function AddressManager({ addresses }: { addresses: AddressView[] }) {
             </label>
             <label className="flex flex-col gap-1 text-sm">
               İlçe
-              <input
+              <select
                 className={input}
                 value={form.district}
+                disabled={!form.city}
                 onChange={(e) => set("district", e.target.value)}
-              />
+              >
+                <option value="">
+                  {form.city ? "Seçin" : "Önce il seçin"}
+                </option>
+                {districtsOf(form.city).map((district) => (
+                  <option key={district} value={district}>
+                    {district}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Mahalle

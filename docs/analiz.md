@@ -364,7 +364,7 @@ Uygulama sırasında alınan teknik kararlar:
 
 **Bilinen sınırlar**
 
-- **İlçe listesi eklenmedi:** il listesi hazır, ilçe serbest metindir. Doğrulanmış bir il/ilçe veri seti projeye eklendiğinde `src/shared/geo` altına konulmalıdır.
+- **İlçe listesi eklendi:** 81 il / 973 ilçe, `src/shared/geo/turkey-districts.ts` (kaynak: github.com/ubeydeozdmr/turkiye-api, MIT, 2025 veri seti). Checkout ve adres defterinde ilçe, seçilen ile bağlı açılır listedir; sunucu ilçenin ile ait olduğunu doğrular. İdari değişikliklerde dosya kaynak veriden yeniden üretilmelidir.
 - Yüklenen ama hiçbir ürüne bağlanmayan görseller otomatik temizlenmez.
 - ERP tarafında sipariş gönderimi (ERP'ye yazma) yoktur; yalnızca stok/fiyat çekilir.
 - Bildirim e-postaları parola sıfırlama şablonunu personel daveti için de kullanır.
