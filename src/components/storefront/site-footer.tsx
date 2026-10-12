@@ -12,7 +12,18 @@ async function CurrentYear() {
 
 async function FooterMenu() {
   await connection();
-  const items = await getContentService().menu("footer");
+  const content = getContentService();
+  const [menuItems, legal] = await Promise.all([
+    content.menu("footer"),
+    content.legalLinks(),
+  ]);
+  const known = new Set(menuItems.map((item) => item.url));
+  const items = [
+    ...menuItems.map((item) => ({ label: item.label, url: item.url })),
+    ...legal
+      .filter((page) => !known.has(page.href))
+      .map((page) => ({ label: page.title, url: page.href })),
+  ];
   if (items.length === 0) return null;
 
   return (

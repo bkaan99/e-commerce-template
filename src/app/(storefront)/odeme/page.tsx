@@ -6,6 +6,8 @@ import { Price } from "@/components/storefront/price";
 import { TrackOnMount } from "@/shared/analytics/track-on-mount";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCartIdentity } from "@/modules/cart/cart.session";
+import { getAddressService } from "@/modules/account/container";
+import { getContentService } from "@/modules/content/container";
 import { getCheckoutService } from "@/modules/orders/container";
 import { isAppError } from "@/shared/errors";
 import type { PaymentOption } from "@/modules/checkout/checkout.service";
@@ -25,6 +27,11 @@ async function CheckoutContent({
   const [user, identity] = await Promise.all([
     getCurrentUser(),
     getCartIdentity(),
+  ]);
+
+  const [savedAddresses, legalLinks] = await Promise.all([
+    user ? getAddressService().list(user.id) : Promise.resolve([]),
+    getContentService().legalLinks(),
   ]);
 
   let quote;
@@ -77,6 +84,8 @@ async function CheckoutContent({
         defaultEmail={user?.email ?? ""}
         defaultCoupon={coupon}
         paymentOptions={paymentOptions}
+        savedAddresses={savedAddresses}
+        legalLinks={legalLinks}
       />
 
       <aside className="flex h-fit flex-col gap-3 rounded-theme border border-border p-5">

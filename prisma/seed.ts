@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { SYSTEM_ROLES } from "../src/shared/permissions";
 import { slugify } from "../src/shared/slug";
+import { LEGAL_PAGE_TEMPLATES } from "./legal-pages";
 import {
   createPrismaClient,
   type PrismaClient,
@@ -323,6 +324,17 @@ async function seedDemoCatalog(db: PrismaClient): Promise<void> {
   }
 }
 
+async function seedLegalPages(db: PrismaClient): Promise<void> {
+  for (const page of LEGAL_PAGE_TEMPLATES) {
+    await db.page.upsert({
+      where: { slug: page.slug },
+      // Mevcut (düzenlenmiş) içerik asla ezilmez.
+      update: {},
+      create: { ...page, isPublished: false },
+    });
+  }
+}
+
 async function main(): Promise<void> {
   const connectionString = process.env["DATABASE_URL"];
   if (!connectionString) {
@@ -334,6 +346,7 @@ async function main(): Promise<void> {
     await seedRoles(db);
     await seedCustomerGroups(db);
     await seedDemoCatalog(db);
+    await seedLegalPages(db);
     console.log("Seed tamamlandı.");
   } finally {
     await db.$disconnect();

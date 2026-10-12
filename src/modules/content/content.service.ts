@@ -8,6 +8,7 @@ import type {
   MenuItemView,
   PageView,
 } from "./content.repository";
+import { publishedLegalLinks } from "./legal";
 import {
   bannerInputSchema,
   menuInputSchema,
@@ -39,6 +40,12 @@ export class ContentService {
 
   publishedPageSlugs(): Promise<{ slug: string; updatedAt: Date }[]> {
     return this.repository.listPublishedPageSlugs();
+  }
+
+  /** Yayındaki yasal sayfalar (footer ve checkout bağlantıları için). */
+  async legalLinks() {
+    const slugs = await this.repository.listPublishedPageSlugs();
+    return publishedLegalLinks(slugs.map((page) => page.slug));
   }
 
   menu(key: MenuKey): Promise<MenuItemView[]> {

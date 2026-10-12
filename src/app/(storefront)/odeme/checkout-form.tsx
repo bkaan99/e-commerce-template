@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
+import type { SavedAddress } from "@/modules/account/address.repository";
 import { TURKEY_PROVINCES } from "@/shared/geo/turkey-provinces";
 import type { PaymentOption } from "@/modules/checkout/checkout.service";
 import { placeOrderAction, type CheckoutFormState } from "./actions";
@@ -39,13 +41,15 @@ function Field({
 function AddressFields({
   prefix,
   errors,
-  defaultInvoiceType = "INDIVIDUAL",
+  saved,
 }: {
   prefix: "shipping" | "billing";
   errors?: Record<string, string>;
-  defaultInvoiceType?: "INDIVIDUAL" | "CORPORATE";
+  saved?: SavedAddress;
 }) {
-  const [invoiceType, setInvoiceType] = useState(defaultInvoiceType);
+  const [invoiceType, setInvoiceType] = useState(
+    saved?.invoiceType ?? "INDIVIDUAL",
+  );
   const name = (field: string) => `${prefix}.${field}`;
 
   return (
@@ -53,6 +57,7 @@ function AddressFields({
       <Field label="Ad" name={name("firstName")} errors={errors}>
         <input
           name={name("firstName")}
+          defaultValue={saved?.firstName}
           required
           autoComplete="given-name"
           className={inputClass}
@@ -61,6 +66,7 @@ function AddressFields({
       <Field label="Soyad" name={name("lastName")} errors={errors}>
         <input
           name={name("lastName")}
+          defaultValue={saved?.lastName}
           required
           autoComplete="family-name"
           className={inputClass}
@@ -70,6 +76,7 @@ function AddressFields({
         <input
           name={name("phone")}
           type="tel"
+          defaultValue={saved?.phone}
           required
           autoComplete="tel"
           placeholder="05XX XXX XX XX"
@@ -80,7 +87,7 @@ function AddressFields({
         <select
           name={name("city")}
           required
-          defaultValue=""
+          defaultValue={saved?.city ?? ""}
           className={inputClass}
         >
           <option value="" disabled>
@@ -94,15 +101,25 @@ function AddressFields({
         </select>
       </Field>
       <Field label="İlçe" name={name("district")} errors={errors}>
-        <input name={name("district")} required className={inputClass} />
+        <input
+          name={name("district")}
+          defaultValue={saved?.district}
+          required
+          className={inputClass}
+        />
       </Field>
       <Field label="Mahalle" name={name("neighborhood")} errors={errors}>
-        <input name={name("neighborhood")} className={inputClass} />
+        <input
+          name={name("neighborhood")}
+          defaultValue={saved?.neighborhood ?? ""}
+          className={inputClass}
+        />
       </Field>
       <div className="sm:col-span-2">
         <Field label="Açık adres" name={name("addressLine")} errors={errors}>
           <textarea
             name={name("addressLine")}
+            defaultValue={saved?.addressLine}
             required
             rows={3}
             autoComplete="street-address"
@@ -113,6 +130,7 @@ function AddressFields({
       <Field label="Posta kodu" name={name("postalCode")} errors={errors}>
         <input
           name={name("postalCode")}
+          defaultValue={saved?.postalCode ?? ""}
           autoComplete="postal-code"
           className={inputClass}
         />
@@ -150,6 +168,7 @@ function AddressFields({
         >
           <input
             name={name("nationalId")}
+            defaultValue={saved?.nationalId ?? ""}
             inputMode="numeric"
             maxLength={11}
             className={inputClass}
@@ -162,7 +181,11 @@ function AddressFields({
             name={name("companyName")}
             errors={errors}
           >
-            <input name={name("companyName")} className={inputClass} />
+            <input
+              name={name("companyName")}
+              defaultValue={saved?.companyName ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field
             label="Vergi numarası"
@@ -171,16 +194,65 @@ function AddressFields({
           >
             <input
               name={name("taxNumber")}
+              defaultValue={saved?.taxNumber ?? ""}
               inputMode="numeric"
               maxLength={10}
               className={inputClass}
             />
           </Field>
           <Field label="Vergi dairesi" name={name("taxOffice")} errors={errors}>
-            <input name={name("taxOffice")} className={inputClass} />
+            <input
+              name={name("taxOffice")}
+              defaultValue={saved?.taxOffice ?? ""}
+              className={inputClass}
+            />
           </Field>
         </>
       )}
+    </div>
+  );
+}
+
+/** Kayıtlı adres seçimi; seçim alanları yeniden oluşturarak değerleri doldurur. */
+function AddressSection({
+  prefix,
+  addresses,
+  errors,
+  initialId,
+}: {
+  prefix: "shipping" | "billing";
+  addresses: SavedAddress[];
+  errors?: Record<string, string>;
+  initialId?: string;
+}) {
+  const [selectedId, setSelectedId] = useState(initialId ?? "");
+  const selected = addresses.find((address) => address.id === selectedId);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {addresses.length > 0 ? (
+        <label className="flex flex-col gap-1 text-sm">
+          <span>Kayıtlı adreslerim</span>
+          <select
+            value={selectedId}
+            onChange={(event) => setSelectedId(event.target.value)}
+            className={inputClass}
+          >
+            <option value="">Yeni adres gir</option>
+            {addresses.map((address) => (
+              <option key={address.id} value={address.id}>
+                {address.title} — {address.district}/{address.city}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <AddressFields
+        key={selectedId || "new"}
+        prefix={prefix}
+        errors={errors}
+        saved={selected}
+      />
     </div>
   );
 }
@@ -195,11 +267,21 @@ export function CheckoutForm({
   defaultEmail,
   defaultCoupon,
   paymentOptions,
+  savedAddresses,
+  legalLinks,
 }: {
   defaultEmail: string;
   defaultCoupon: string;
   paymentOptions: PaymentOption[];
+  savedAddresses: SavedAddress[];
+  legalLinks: { slug: string; title: string; href: string }[];
 }) {
+  const defaultShipping = savedAddresses.find((a) => a.isDefaultShipping);
+  const defaultBilling = savedAddresses.find((a) => a.isDefaultBilling);
+  const preInfo = legalLinks.find((l) => l.slug === "on-bilgilendirme-formu");
+  const salesContract = legalLinks.find(
+    (l) => l.slug === "mesafeli-satis-sozlesmesi",
+  );
   const [state, formAction, pending] = useActionState(
     placeOrderAction,
     initial,
@@ -234,7 +316,12 @@ export function CheckoutForm({
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Teslimat adresi</h2>
-        <AddressFields prefix="shipping" errors={errors} />
+        <AddressSection
+          prefix="shipping"
+          addresses={savedAddresses}
+          errors={errors}
+          initialId={defaultShipping?.id}
+        />
       </section>
 
       <section className="flex flex-col gap-4">
@@ -250,7 +337,12 @@ export function CheckoutForm({
         {!sameBilling ? (
           <>
             <h2 className="text-lg font-semibold">Fatura adresi</h2>
-            <AddressFields prefix="billing" errors={errors} />
+            <AddressSection
+              prefix="billing"
+              addresses={savedAddresses}
+              errors={errors}
+              initialId={defaultBilling?.id}
+            />
           </>
         ) : null}
       </section>
@@ -314,8 +406,26 @@ export function CheckoutForm({
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="acceptTerms" required className="mt-1" />
         <span>
-          Ön bilgilendirme formunu ve mesafeli satış sözleşmesini okudum,
-          onaylıyorum.
+          {preInfo ? (
+            <Link href={preInfo.href} target="_blank" className="underline">
+              Ön bilgilendirme formunu
+            </Link>
+          ) : (
+            "Ön bilgilendirme formunu"
+          )}{" "}
+          ve{" "}
+          {salesContract ? (
+            <Link
+              href={salesContract.href}
+              target="_blank"
+              className="underline"
+            >
+              mesafeli satış sözleşmesini
+            </Link>
+          ) : (
+            "mesafeli satış sözleşmesini"
+          )}{" "}
+          okudum, onaylıyorum.
         </span>
       </label>
       {errors?.["acceptTerms"] ? (
