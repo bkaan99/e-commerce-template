@@ -40,6 +40,7 @@ const order: OrderView = {
   customerNote: null,
   items: [
     {
+      variantId: null,
       productName: "Tişört <script>",
       variantName: "Siyah / M",
       sku: "SKU",

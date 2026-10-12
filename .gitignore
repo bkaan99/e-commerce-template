@@ -43,3 +43,10 @@ next-env.d.ts
 
 # prisma
 /generated
+
+# Yüklenen dosyalar
+/uploads
+
+# Playwright
+/test-results
+/playwright-report

@@ -179,6 +179,12 @@ export default function AdminProductsPage({
             >
               CSV olarak indir
             </a>
+            <Link
+              href="/admin/urunler/ice-aktar"
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              İçe aktar
+            </Link>
             <Link href="/admin/urunler/yeni" className={cn(buttonVariants())}>
               Yeni ürün
             </Link>

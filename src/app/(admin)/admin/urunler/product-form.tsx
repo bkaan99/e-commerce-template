@@ -159,6 +159,32 @@ export function ProductForm({
     })),
   );
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function uploadImage(file: File, index: number) {
+    setUploadError(null);
+    const body = new FormData();
+    body.set("file", file);
+
+    try {
+      const response = await fetch("/admin/yukle", { method: "POST", body });
+      const result = (await response.json()) as {
+        url?: string;
+        error?: string;
+      };
+      if (!response.ok || !result.url) {
+        setUploadError(result.error ?? "Yükleme başarısız");
+        return;
+      }
+      const url = result.url;
+      setImages((rows) =>
+        rows.map((row, i) => (i === index ? { ...row, url } : row)),
+      );
+    } catch {
+      setUploadError("Yükleme başarısız, bağlantınızı kontrol edin");
+    }
+  }
+
   const parsedOptions = useMemo(
     () =>
       options
@@ -627,26 +653,45 @@ export function ProductForm({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
-            Görsel adresini girin (https://… veya /yol). Bir seçenek seçerseniz
-            görsel yalnızca o seçenek (örn. renk) seçilince gösterilir.
+            Görsel yükleyin (JPEG, PNG, WebP, GIF — en fazla 5 MB) veya adres
+            girin (https://… veya /yol). Bir seçenek seçerseniz görsel yalnızca
+            o seçenek (örn. renk) seçilince gösterilir.
           </p>
+          {uploadError ? (
+            <p role="alert" className="text-sm text-red-600">
+              {uploadError}
+            </p>
+          ) : null}
           {images.map((image, index) => (
             <div
               key={index}
               className="grid gap-2 sm:grid-cols-[1fr_1fr_200px_auto]"
             >
-              <Input
-                value={image.url}
-                placeholder="Görsel adresi"
-                aria-label="Görsel adresi"
-                onChange={(e) =>
-                  setImages((rows) =>
-                    rows.map((r, i) =>
-                      i === index ? { ...r, url: e.target.value } : r,
-                    ),
-                  )
-                }
-              />
+              <div className="flex flex-col gap-1">
+                <Input
+                  value={image.url}
+                  placeholder="Görsel adresi"
+                  aria-label="Görsel adresi"
+                  onChange={(e) =>
+                    setImages((rows) =>
+                      rows.map((r, i) =>
+                        i === index ? { ...r, url: e.target.value } : r,
+                      ),
+                    )
+                  }
+                />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  aria-label="Dosyadan yükle"
+                  className="text-xs"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadImage(file, index);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
               <Input
                 value={image.alt}
                 placeholder="Alternatif metin"

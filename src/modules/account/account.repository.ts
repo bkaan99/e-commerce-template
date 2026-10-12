@@ -68,6 +68,20 @@ export class PrismaAccountRepository implements AccountRepository {
     });
   }
 
+  async findProfile(userId: string) {
+    return this.db().user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, lastName: true, phone: true },
+    });
+  }
+
+  async updateProfile(
+    userId: string,
+    data: { firstName: string; lastName: string; phone: string | null },
+  ): Promise<void> {
+    await this.db().user.update({ where: { id: userId }, data });
+  }
+
   async updatePassword(userId: string, passwordHash: string): Promise<void> {
     await this.db().user.update({
       where: { id: userId },

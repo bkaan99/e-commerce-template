@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BannerGrid } from "@/components/storefront/banner-grid";
 import { ProductGrid } from "@/components/storefront/product-grid";
+import { JsonLd } from "@/components/storefront/json-ld";
 import { siteConfig } from "@/config/site.config";
+import { getSiteUrl } from "@/shared/site-url";
 import { getCategoryTree } from "@/modules/catalog/cached";
 import { getRequestPricing } from "@/modules/b2b/pricing-identity";
 import { catalogService } from "@/modules/catalog/container";
@@ -37,9 +39,45 @@ async function CategoryTiles() {
   );
 }
 
+async function SiteJsonLd() {
+  await connection();
+  const url = getSiteUrl();
+
+  return (
+    <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: siteConfig.name,
+          url,
+          email: siteConfig.contact.email,
+          telephone: siteConfig.contact.phone,
+        }}
+      />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: siteConfig.name,
+          url,
+          potentialAction: {
+            "@type": "SearchAction",
+            target: `${url}/ara?q={search_term_string}`,
+            "query-input": "required name=search_term_string",
+          },
+        }}
+      />
+    </>
+  );
+}
+
 export default function HomePage() {
   return (
     <div className="flex flex-col gap-10">
+      <Suspense fallback={null}>
+        <SiteJsonLd />
+      </Suspense>
       <section className="flex flex-col gap-2 rounded-theme bg-muted p-8">
         <h1 className="text-3xl font-semibold">{siteConfig.name}</h1>
         <p className="text-muted-foreground">{siteConfig.description}</p>

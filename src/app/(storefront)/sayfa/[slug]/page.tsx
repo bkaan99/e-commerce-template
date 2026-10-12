@@ -1,3 +1,4 @@
+import { absoluteUrl } from "@/shared/site-url";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -24,7 +25,7 @@ export async function generateMetadata({
   return {
     title: page.seoTitle ?? page.title,
     description: page.seoDescription ?? undefined,
-    alternates: { canonical: `/sayfa/${page.slug}` },
+    alternates: { canonical: absoluteUrl(`/sayfa/${page.slug}`) },
   };
 }
 

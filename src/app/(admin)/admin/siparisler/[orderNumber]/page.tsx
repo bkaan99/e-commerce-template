@@ -1,3 +1,4 @@
+import { trackingUrl } from "@/shared/shipping/carriers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -231,6 +232,22 @@ async function OrderDetail({
               <p key={index}>
                 {shipment.carrier}
                 {shipment.trackingNumber ? ` · ${shipment.trackingNumber}` : ""}
+                {trackingUrl(shipment.carrier, shipment.trackingNumber) ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={trackingUrl(
+                        shipment.carrier,
+                        shipment.trackingNumber,
+                      )!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      Takip
+                    </a>
+                  </>
+                ) : null}
               </p>
             ))}
             {order.returns.map((request) => (

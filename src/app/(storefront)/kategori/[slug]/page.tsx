@@ -29,7 +29,7 @@ export async function generateMetadata({
   return {
     title: category.seoTitle ?? category.name,
     description,
-    alternates: { canonical: `/kategori/${category.slug}` },
+    alternates: { canonical: absoluteUrl(`/kategori/${category.slug}`) },
     openGraph: { title: category.name, description, type: "website" },
   };
 }

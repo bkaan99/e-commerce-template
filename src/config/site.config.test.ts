@@ -12,6 +12,7 @@ const allOff: Features = {
   blog: false,
   sms: false,
   captcha: false,
+  erp: false,
 };
 
 describe("validateSiteConfig", () => {

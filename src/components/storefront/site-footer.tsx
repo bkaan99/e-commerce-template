@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { siteConfig } from "@/config/site.config";
-import { getContentService } from "@/modules/content/container";
+import { getCachedLegalLinks, getCachedMenu } from "@/modules/content/cached";
 
 /** Yıl istek anında hesaplanır; prerender sırasında sabitlenmez. */
 async function CurrentYear() {
@@ -12,7 +12,17 @@ async function CurrentYear() {
 
 async function FooterMenu() {
   await connection();
-  const items = await getContentService().menu("footer");
+  const [menuItems, legal] = await Promise.all([
+    getCachedMenu("footer"),
+    getCachedLegalLinks(),
+  ]);
+  const known = new Set(menuItems.map((item) => item.url));
+  const items = [
+    ...menuItems.map((item) => ({ label: item.label, url: item.url })),
+    ...legal
+      .filter((page) => !known.has(page.href))
+      .map((page) => ({ label: page.title, url: page.href })),
+  ];
   if (items.length === 0) return null;
 
   return (

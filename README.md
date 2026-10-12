@@ -3,7 +3,7 @@
 Türkiye pazarına yönelik e-ticaret siteleri için Next.js tabanlı, kopyalanıp kullanılan şablon.
 PayTR ödeme, B2B bayi desteği, yönetim paneli ve temiz katmanlı mimari hedefler.
 
-> **Durum:** v0.5 B2B tamamlandı (bayi başvurusu ve onayı, bayi grupları, grup/kademeli fiyat, fiyat görünürlüğü, havale/EFT ve vadeli ödeme, kredi limiti, minimum sipariş). Cila ve eksik parçalar (v0.6) sonraki fazda gelir.
+> **Durum:** v0.6 tamamlandı (KVKK ve hesap özellikleri, ürün içe aktarma/toplu güncelleme, personel ve rol yönetimi, görsel yükleme, ERP altyapısı, uçtan uca testler). Bilinen sınırlar için [docs/analiz.md](docs/analiz.md) bölüm 17.
 > Plan ve kararlar: [docs/analiz.md](docs/analiz.md)
 
 ## Gereksinimler
@@ -36,6 +36,9 @@ npm run worker   # arka plan işleri (ayrı terminalde)
 - Yönetim paneli: `/admin` (giriş: `/giris`). Menü, kullanıcının yetkilerine göre görünür.
   - Pano, siparişler (kargola, teslim, iptal/iade), iade talepleri, ürünler (varyant/stok/görsel/SEO), kategoriler, nitelikler ve markalar, kupon ve kampanyalar, müşteriler, içerik (banner, sayfa, menü), denetim günlüğü
   - CSV dışa aktarma: `/admin/disa-aktar/siparisler` ve `/admin/disa-aktar/urunler`
+  - Ürün içe aktarma ve SKU bazlı toplu fiyat/stok güncelleme: `/admin/urunler/ice-aktar` (önizleme + şablonlar)
+  - Personel ve roller: `/admin/personel`, `/admin/roller` (özel rol oluşturma, yetki seçimi)
+  - Hesabım: adres defteri, profil/parola, verilerimi indir, hesabı sil (`/hesabim`)
   - Statik sayfalar: `/sayfa/<slug>`
 - Gelen e-postalar (Mailpit): http://localhost:8025
 - Sağlık kontrolü: `/api/health` ve `/api/health/ready`
@@ -54,6 +57,7 @@ Yalnızca yapılandırma dosyalarını üretmek için: `npm run init-project -- 
 | `npm run format`           | Prettier ile biçimlendirme                                      |
 | `npm test`                 | Birim testleri                                                  |
 | `npm run test:integration` | Entegrasyon testleri (ayrı test veritabanı kullanır)            |
+| `npm run test:e2e`         | Playwright uçtan uca testleri (önce `npm run build`)            |
 | `npm run db:up` / `down`   | Docker servislerini başlat / durdur                             |
 | `npm run db:migrate`       | Geliştirmede migration oluştur ve uygula                        |
 | `npm run db:deploy`        | Mevcut migration'ları uygula                                    |
@@ -65,7 +69,7 @@ Yalnızca yapılandırma dosyalarını üretmek için: `npm run init-project -- 
 ```
 src/
   app/            Yönlendirme ve sayfalar (admin: app/(admin))
-  modules/        İş mantığı: auth, account, b2b, catalog, cart, checkout, orders, returns, content, reporting, notifications, stock-alerts, wishlist, admin
+  modules/        İş mantığı: auth, account, b2b, catalog, cart, checkout, orders, returns, content, erp, reporting, notifications, stock-alerts, wishlist, admin
   components/     Vitrin bileşenleri (storefront, product, wishlist)
   integrations/   Dış servis adapter'ları (PayTR, kargo, ...)
   shared/         Ortak altyapı: env, db, hata, para, logger, kuyruk, rate limit, audit, i18n
@@ -162,7 +166,19 @@ Akış:
 - **Sepet:** Misafir sepeti `cart_token` çerezinde, üye sepeti kullanıcıda tutulur; girişte birleştirilir. Stok `stok − rezerve` üzerinden doğrulanır.
 - **Favoriler:** Üyede veritabanında, misafirde tarayıcıda (`localStorage`); girişte hesaba aktarılır.
 - **Analitik:** Olaylar tek `trackEvent` arayüzünden gider; çerez onayı olmadan hiçbir izleme betiği yüklenmez.
-- **Önbellek:** Veritabanı okuyan bileşenler istek anında çalışır (`connection()`); build veritabanı gerektirmez.
+- **Önbellek:** Veritabanı okuyan bileşenler istek anında çalışır (`connection()`); build veritabanı gerektirmez. Menü, banner ve kategori ağacı 60 sn süreç içi önbellekte tutulur ve yönetim değişikliğinde temizlenir; fiyat/stok önbelleğe alınmaz.
+
+## Yasal sayfalar (KVKK, satış sözleşmesi)
+
+`npm run db:seed` beş yasal metin **şablonunu** taslak olarak oluşturur (mesafeli satış sözleşmesi, ön bilgilendirme formu, KVKK aydınlatma metni, iade/iptal koşulları, çerez politikası). Hukuk danışmanınızla firmanıza göre uyarlayıp `/admin/icerik` ekranından yayınlayın; yayınlanınca footer ve checkout onay kutusuna otomatik bağlanır.
+
+## Görsel yükleme ve dosya depolama
+
+Ürün formundaki "Dosyadan yükle" JPEG/PNG/WebP/GIF kabul eder (en fazla 5 MB). Dosyalar `UPLOAD_DIR` (varsayılan `./uploads`) altında saklanır ve `/uploads/...` adresinden sunulur. **Production'da bu dizin kalıcı bir volume olmalıdır.** Farklı bir depolama (S3, R2) için `src/shared/storage/storage.ts` içindeki `FileStorage` arayüzünü uygulayıp `src/shared/storage/index.ts` içinde değiştirin.
+
+## ERP entegrasyonu
+
+`features.erp` açıldığında worker 15 dakikada bir `ErpConnector` üzerinden stok/fiyat çeker. Hazır `HttpJsonErpConnector`, `ERP_STOCK_URL` adresinden `[{ "sku": "...", "stock": 5, "price": 99.9 }]` bekler (`ERP_API_KEY` varsa `Authorization: Bearer`). Farklı bir ERP için `src/modules/erp/container.ts` içinde kendi bağlayıcınızı bağlayın.
 
 ## Güvenlik notları
 
@@ -176,7 +192,8 @@ Akış:
 
 - **Birim:** iş kuralları, yapılandırma, yetki, kilitleme politikası. Veritabanı gerektirmez.
 - **Entegrasyon:** `<veritabanı>_test` adlı ayrı bir veritabanında çalışır, geliştirme verinize dokunmaz. Docker servisleri açık olmalıdır.
-- CI (`.github/workflows/ci.yml`) biçim, lint, tip, test ve build adımlarını koşar.
+- **Uçtan uca (Playwright):** üretim derlemesine karşı kritik akışlar (gezinti, misafir sipariş, kayıt/giriş, admin). Yerelde yüklü Chrome ile: `E2E_BROWSER_CHANNEL=chrome npm run test:e2e`; yoksa önce `npx playwright install chromium`.
+- CI (`.github/workflows/ci.yml`) biçim, lint, tip, test, build ve uçtan uca adımlarını koşar.
 
 ## Lisans
 

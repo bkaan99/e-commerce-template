@@ -33,12 +33,21 @@ export async function generateMetadata({
   return {
     title: product.seoTitle ?? product.name,
     description,
-    alternates: { canonical: `/urun/${product.slug}` },
+    alternates: { canonical: absoluteUrl(`/urun/${product.slug}`) },
     openGraph: {
       title: product.name,
       description,
       type: "website",
-      images: image ? [{ url: image.url, alt: image.alt }] : undefined,
+      images: image
+        ? [
+            {
+              url: image.url.startsWith("/")
+                ? absoluteUrl(image.url)
+                : image.url,
+              alt: image.alt,
+            },
+          ]
+        : undefined,
     },
   };
 }

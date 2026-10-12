@@ -11,6 +11,7 @@ import { PERMISSIONS } from "@/shared/permissions";
 import { requirePermission } from "@/modules/auth/session";
 import { getClientIp } from "@/shared/rate-limit";
 import { revalidatePath } from "next/cache";
+import { invalidateStorefrontCaches } from "@/shared/cache/registry";
 
 export interface SaveProductResult {
   ok: boolean;
@@ -33,6 +34,7 @@ export async function saveProductAction(
     if (id) await service.update(id, payload, actor);
     else savedId = await service.create(payload, actor);
 
+    invalidateStorefrontCaches();
     revalidatePath("/admin/urunler");
     revalidatePath("/", "layout");
     return { ok: true, id: savedId ?? undefined };

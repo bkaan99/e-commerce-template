@@ -26,6 +26,14 @@ async function AccountContent() {
         <h2 className="text-lg font-semibold">Bilgilerim</h2>
         <p>{user.name}</p>
         <p className="text-muted-foreground">{user.email}</p>
+        <div className="flex gap-4 pt-1 text-sm">
+          <Link href="/hesabim/adresler" className="underline">
+            Adreslerim
+          </Link>
+          <Link href="/hesabim/ayarlar" className="underline">
+            Hesap ayarları
+          </Link>
+        </div>
       </section>
 
       {features.b2b ? (

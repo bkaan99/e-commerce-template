@@ -1,3 +1,4 @@
+import { trackingUrl } from "@/shared/shipping/carriers";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -11,6 +12,7 @@ import {
 } from "@/modules/orders/order-labels";
 import { getReturnService } from "@/modules/returns/container";
 import { isAppError } from "@/shared/errors";
+import { ReorderButton } from "./reorder-button";
 import { ReturnForm } from "./return-form";
 import {
   CancelOrderButton,
@@ -133,6 +135,19 @@ async function OrderContent({
         <p>
           Kargo: {order.carrier ? `${order.carrier} · ` : ""}
           <strong>{order.trackingNumber}</strong>
+          {trackingUrl(order.carrier, order.trackingNumber) ? (
+            <>
+              {" · "}
+              <a
+                href={trackingUrl(order.carrier, order.trackingNumber)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Kargo takibi
+              </a>
+            </>
+          ) : null}
         </p>
       ) : null}
 
@@ -211,6 +226,10 @@ async function OrderContent({
         <p className="text-sm text-muted-foreground">
           {returnEligibility.reason}
         </p>
+      ) : null}
+
+      {order.status === "DELIVERED" || order.status === "SHIPPED" ? (
+        <ReorderButton orderNumber={order.orderNumber} lookupToken={token} />
       ) : null}
 
       {isCancellable(order.status) && !awaitingPayment ? (
